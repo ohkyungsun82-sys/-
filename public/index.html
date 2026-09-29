@@ -3,128 +3,112 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>동아리 작품 공유 플랫폼 & 실시간 2D 탱크대전</title>
+    <title>테크 & 동아리 기술 블로그</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/socket.io/socket.io.js"></script>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
-    <!-- 상단 네비게이션 -->
-    <header class="bg-slate-800 border-b border-slate-700 px-6 py-4 flex justify-between items-center">
-        <h1 class="text-xl font-bold text-cyan-400">🎮 동아리 플랫폼 & 실시간 탱크대전</h1>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
+    <!-- 상단 네비게이션바 -->
+    <header class="bg-slate-900 border-b border-slate-800 px-8 py-4 flex justify-between items-center sticky top-0 z-50">
+        <div class="flex items-center gap-3">
+            <span class="text-xl font-black text-cyan-400 tracking-wider">DEV.LOG</span>
+            <span class="text-xs text-slate-400 border-l border-slate-700 pl-3">동아리 기술 및 개발 아카이브</span>
+        </div>
         <div class="flex items-center gap-4">
             <div id="logged-out" class="flex gap-2">
-                <button onclick="openLoginModal()" class="px-4 py-1.5 bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold rounded text-sm transition">로그인 / 회원가입</button>
+                <button onclick="openLoginModal()" class="px-4 py-2 bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold rounded-lg text-xs transition">로그인 / 회원가입</button>
             </div>
             <div id="logged-in" class="hidden flex items-center gap-4">
-                <div id="user-profile-badge" class="flex items-center gap-2 cursor-pointer" onclick="openProfileModal()" title="프로필 수정">
-                    <img id="user-avatar" src="" class="w-8 h-8 rounded-full object-cover border border-cyan-400">
+                <div class="flex items-center gap-2 cursor-pointer" onclick="openProfileModal()" title="프로필 설정">
+                    <img id="user-avatar" src="" class="w-8 h-8 rounded-full object-cover border border-cyan-500">
                     <div class="text-left">
-                        <span id="user-welcome" class="text-sm font-medium text-slate-300 block"></span>
-                        <span id="user-points" class="text-xs text-yellow-400 font-bold"></span>
+                        <span id="user-welcome" class="text-xs font-semibold text-slate-200 block"></span>
+                        <span id="user-points" class="text-[10px] text-yellow-400 font-bold"></span>
                     </div>
                 </div>
-                <button onclick="handleLogout()" class="px-3 py-1.5 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded text-sm transition">로그아웃</button>
+                <button onclick="handleLogout()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs transition border border-slate-700">로그아웃</button>
             </div>
         </div>
     </header>
 
     <!-- 메인 레이아웃 -->
-    <main class="flex-1 max-w-7xl w-full mx-auto p-6 grid grid-cols-1 md:grid-cols-4 gap-6">
-        <!-- 좌측: 업로드 폼 & 미니게임 바로가기 -->
-        <div class="space-y-6">
-            <section class="bg-slate-800 p-5 rounded-xl border border-slate-700">
-                <h2 class="text-lg font-semibold mb-4 text-cyan-300">작품 업로드</h2>
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-xs text-slate-400 mb-1">제목</label>
-                        <input type="text" id="post-title" placeholder="예: 블렌더 무기" class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-sm text-white focus:outline-none focus:border-cyan-400">
-                    </div>
-                    <div>
-                        <label class="block text-xs text-slate-400 mb-1">설명</label>
-                        <textarea id="post-desc" rows="3" placeholder="설명 입력..." class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-sm text-white focus:outline-none focus:border-cyan-400 resize-none"></textarea>
-                    </div>
-                    <div>
-                        <label class="block text-xs text-slate-400 mb-1">사진 파일</label>
-                        <input type="file" id="post-img" accept="image/*" class="w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-cyan-500/20 file:text-cyan-300 hover:file:bg-cyan-500/35 cursor-pointer">
-                    </div>
-                    <button onclick="createPost()" class="w-full py-2.5 bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold rounded text-sm transition">공유하기</button>
+    <main class="flex-1 max-w-7xl w-full mx-auto p-6 grid grid-cols-1 md:grid-cols-4 gap-8">
+        <!-- 좌측: 글 작성 포스팅 폼 -->
+        <section class="bg-slate-900 p-6 rounded-xl border border-slate-800 h-fit space-y-4 shadow-xl">
+            <h2 class="text-sm font-bold text-cyan-400 uppercase tracking-widest border-b border-slate-800 pb-2">새 포스트 작성</h2>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-[11px] text-slate-400 mb-1">포스트 제목</label>
+                    <input type="text" id="post-title" placeholder="예: 블렌더 3D 모델링 최적화 기법" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-500">
                 </div>
-            </section>
-
-            <section class="bg-slate-800 p-5 rounded-xl border border-slate-700 text-center space-y-3">
-                <h2 class="text-lg font-semibold text-yellow-400">🎯 실시간 2D 탱크대전</h2>
-                <p class="text-xs text-slate-300">WASD 이동, 마우스 조준, 클릭으로 발사! 상대 탱크를 맞히면 포인트를 획득합니다!</p>
-                <button onclick="openGameModal()" class="w-full py-2.5 bg-yellow-500 hover:bg-yellow-600 text-slate-950 font-bold rounded text-sm transition">탱크게임 입장하기</button>
-            </section>
-        </div>
-
-        <!-- 중앙: 피드 목록 -->
-        <section class="md:col-span-2 space-y-4">
-            <h2 class="text-lg font-semibold text-cyan-300">동아리원 피드</h2>
-            <div id="feed-container" class="space-y-4"></div>
+                <div>
+                    <label class="block text--[11px] text-slate-400 mb-1">기술 내용 및 본문</label>
+                    <textarea id="post-desc" rows="5" placeholder="마크다운 스타일로 기술적 인사이트를 공유해보세요." class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-500 resize-none"></textarea>
+                </div>
+                <div>
+                    <label class="block text-[11px] text-slate-400 mb-1">참조 이미지 첨부</label>
+                    <input type="file" id="post-img" accept="image/*" class="w-full text-[11px] text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:font-semibold file:bg-cyan-500/10 file:text-cyan-400 hover:file:bg-cyan-500/20 cursor-pointer">
+                </div>
+                <button onclick="createPost()" class="w-full py-2.5 bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold rounded-lg text-xs transition">포스트 발행</button>
+            </div>
         </section>
 
-        <!-- 우측 사이드바: 닉네임 관리 -->
-        <aside class="bg-slate-800 p-5 rounded-xl border border-slate-700 h-fit space-y-4">
-            <h2 class="text-lg font-semibold text-cyan-300">동아리원 목록</h2>
-            <div class="space-y-2">
-                <input type="password" id="admin-secret-input" placeholder="비밀번호 확인 마스터 키" class="w-full px-3 py-1.5 bg-slate-900 border border-slate-600 rounded text-xs text-white focus:outline-none focus:border-cyan-400">
-                <button onclick="verifyAdminKey()" class="w-full py-1.5 bg-slate-700 hover:bg-slate-600 text-cyan-300 font-bold rounded text-xs transition">비밀번호 전체 조회 인증</button>
+        <!-- 중앙: 블로그 피드 아카이브 -->
+        <section class="md:col-span-2 space-y-6">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h2 class="text-sm font-bold text-slate-300 uppercase tracking-widest">기술 아카이브 피드</h2>
+                <span class="text-xs text-slate-500">실시간 동기화됨</span>
             </div>
-            <div id="user-list-container" class="space-y-2 max-h-[400px] overflow-y-auto"></div>
+            <div id="feed-container" class="space-y-6"></div>
+        </section>
+
+        <!-- 우측 사이드바: 멤버 관리 및 보안 인증 -->
+        <aside class="bg-slate-900 p-6 rounded-xl border border-slate-800 h-fit space-y-5 shadow-xl">
+            <h2 class="text-sm font-bold text-cyan-400 uppercase tracking-widest border-b border-slate-800 pb-2">Contributors</h2>
+            <div class="space-y-2">
+                <input type="password" id="admin-secret-input" placeholder="마스터 보안 키 입력" class="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-500">
+                <button onclick="verifyAdminKey()" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-cyan-400 font-bold rounded-lg text-xs transition border border-slate-700">비밀번호 권한 인증</button>
+            </div>
+            <div id="user-list-container" class="space-y-2.5 max-h-[450px] overflow-y-auto"></div>
         </aside>
     </main>
 
     <!-- 로그인 모달 -->
-    <div id="login-modal" class="fixed inset-0 bg-black/70 flex justify-center items-center hidden z-50">
-        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 w-96 space-y-4 relative">
-            <h2 class="text-xl font-bold text-cyan-400 text-center">로그인 및 회원가입</h2>
+    <div id="login-modal" class="fixed inset-0 bg-black/80 flex justify-center items-center hidden z-50 backdrop-blur-sm">
+        <div class="bg-slate-900 p-8 rounded-2xl border border-slate-800 w-96 space-y-5 relative shadow-2xl">
+            <h2 class="text-lg font-bold text-cyan-400 text-center tracking-wide">Developer Authentication</h2>
             <div class="space-y-3">
                 <div>
-                    <label class="block text-xs text-slate-400 mb-1">닉네임</label>
-                    <input type="text" id="modal-username" placeholder="닉네임" class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-sm text-white focus:outline-none focus:border-cyan-400">
+                    <label class="block text-xs text-slate-400 mb-1">사용자명 (ID)</label>
+                    <input type="text" id="modal-username" placeholder="닉네임 입력" class="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-500">
                 </div>
                 <div>
-                    <label class="block text-xs text-slate-400 mb-1">비밀번호</label>
-                    <input type="password" id="modal-password" placeholder="비밀번호" class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-sm text-white focus:outline-none focus:border-cyan-400">
+                    <label class="block text-xs text-slate-400 mb-1">비밀번호 (Password)</label>
+                    <input type="password" id="modal-password" placeholder="비밀번호 입력" class="w-full px-3 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-500">
                 </div>
-                <button onclick="handleLogin()" class="w-full py-2.5 bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold rounded text-sm transition">확인</button>
+                <button onclick="handleLogin()" class="w-full py-2.5 bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold rounded-lg text-xs transition">인증 및 접속</button>
             </div>
-            <button onclick="closeLoginModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-sm">✕</button>
+            <button onclick="closeLoginModal()" class="absolute top-4 right-4 text-slate-500 hover:text-white text-xs">✕</button>
         </div>
     </div>
 
-    <!-- 프로필 및 포인트 샵 모달 -->
-    <div id="profile-modal" class="fixed inset-0 bg-black/70 flex justify-center items-center hidden z-50">
-        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 w-96 space-y-4 relative max-h-[90vh] overflow-y-auto">
-            <h2 class="text-xl font-bold text-cyan-400 text-center">프로필 및 포인트 샵</h2>
+    <!-- 프로필 설정 및 포인트 스토어 모달 -->
+    <div id="profile-modal" class="fixed inset-0 bg-black/80 flex justify-center items-center hidden z-50 backdrop-blur-sm">
+        <div class="bg-slate-900 p-8 rounded-2xl border border-slate-800 w-96 space-y-5 relative shadow-2xl max-h-[90vh] overflow-y-auto">
+            <h2 class="text-lg font-bold text-cyan-400 text-center tracking-wide">프로필 및 배지 커스텀</h2>
             <div class="space-y-4 text-xs">
                 <div>
-                    <label class="block text-slate-400 mb-1">프로필 이미지 변경</label>
-                    <input type="file" id="profile-img-input" accept="image/*" class="w-full text-slate-400 file:mr-4 file:py-1.5 file:px-3 file:rounded file:border-0 file:font-semibold file:bg-cyan-500/20 file:text-cyan-300 cursor-pointer">
-                    <button onclick="updateProfile()" class="w-full mt-2 py-2 bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold rounded transition">사진 변경하기</button>
+                    <label class="block text-slate-400 mb-1">프로필 아바타 교체</label>
+                    <input type="file" id="profile-img-input" accept="image/*" class="w-full text-slate-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:font-semibold file:bg-cyan-500/10 file:text-cyan-400 cursor-pointer">
+                    <button onclick="updateProfile()" class="w-full mt-2 py-2 bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold rounded-lg transition">이미지 업로드</button>
                 </div>
-                <hr class="border-slate-700">
+                <hr class="border-slate-800">
                 <div>
-                    <label class="block font-semibold text-yellow-400 mb-2">프레임 샵 (포인트 구매)</label>
+                    <label class="block font-semibold text-yellow-400 mb-2">프레임 스토어 (활동 포인트 구매)</label>
                     <div class="space-y-2" id="shop-frames"></div>
                 </div>
             </div>
-            <button onclick="closeProfileModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-sm">✕</button>
-        </div>
-    </div>
-
-    <!-- 실시간 탱크대전 게임 모달 -->
-    <div id="game-modal" class="fixed inset-0 bg-black/80 flex justify-center items-center hidden z-50">
-        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 w-[720px] space-y-3 relative text-center">
-            <div class="flex justify-between items-center">
-                <h2 class="text-xl font-bold text-yellow-400">🎯 실시간 2D 탱크 대전</h2>
-                <span class="text-xs text-cyan-300">WASD 이동 | 마우스 조준 & 클릭 발사 (+30P / 킬)</span>
-                <button onclick="closeGameModal()" class="text-slate-400 hover:text-white text-sm">✕</button>
-            </div>
-            <div class="border border-slate-700 bg-slate-950 rounded-lg overflow-hidden flex justify-center relative">
-                <canvas id="tankCanvas" width="680" height="400" class="cursor-crosshair"></canvas>
-            </div>
+            <button onclick="closeProfileModal()" class="absolute top-4 right-4 text-slate-500 hover:text-white text-xs">✕</button>
         </div>
     </div>
 
@@ -163,11 +147,11 @@
                 document.getElementById('logged-out').classList.add('hidden');
                 document.getElementById('logged-in').classList.remove('hidden');
                 document.getElementById('user-welcome').innerText = currentUser.username;
-                document.getElementById('user-points').innerText = `💰 ${currentUser.points || 0} P`;
+                document.getElementById('user-points').innerText = `✨ ${currentUser.points || 0} pts`;
                 document.getElementById('user-avatar').src = currentUser.avatar || 'https://via.placeholder.com/150';
                 
                 const avatarEl = document.getElementById('user-avatar');
-                avatarEl.className = `w-8 h-8 rounded-full object-cover border-2 ${currentUser.frame || 'border-cyan-400'}`;
+                avatarEl.className = `w-8 h-8 rounded-full object-cover border-2 ${currentUser.frame || 'border-cyan-500'}`;
             } else {
                 document.getElementById('logged-out').classList.remove('hidden');
                 document.getElementById('logged-in').classList.add('hidden');
@@ -212,16 +196,16 @@
             const key = document.getElementById('admin-secret-input').value.trim();
             if (key === 'dbsgh1104@@^^') {
                 canViewPassword = true;
-                alert('인증 성공! 모든 유저의 비밀번호가 표시됩니다.');
+                alert('보안 인증 성공. 모든 계정의 비밀번호가 노출됩니다.');
                 fetchInitialData();
             } else {
-                alert('비밀번호 확인 마스터 키가 틀렸습니다!');
+                alert('마스터 보안 키가 일치하지 않습니다.');
             }
         }
 
         async function updateProfile() {
             const fileInput = document.getElementById('profile-img-input');
-            if (!fileInput.files || !fileInput.files[0]) return alert('이미지를 선택하세요.');
+            if (!fileInput.files || !fileInput.files[0]) return alert('이미지를 선택해주세요.');
 
             const formData = new FormData();
             formData.append('username', currentUser.username);
@@ -238,20 +222,20 @@
         }
 
         const frames = [
-            { name: '기본 테두리', class: 'border-cyan-400', cost: 0 },
-            { name: '황금 테두리', class: 'border-yellow-400 shadow-[0_0_10px_#facc15]', cost: 100 },
-            { name: '무지개 네온', class: 'border-purple-500 shadow-[0_0_10px_#a855f7]', cost: 250 }
+            { name: '스탠다드 테두리', class: 'border-cyan-500', cost: 0 },
+            { name: '엘리트 골드', class: 'border-yellow-400 shadow-[0_0_12px_#facc15]', cost: 100 },
+            { name: '사이버 펑크 네온', class: 'border-purple-500 shadow-[0_0_12px_#a855f7]', cost: 250 }
         ];
 
         function renderShop() {
             const container = document.getElementById('shop-frames');
             container.innerHTML = frames.map(f => `
-                <div class="bg-slate-900 p-2.5 rounded-lg border border-slate-700 flex justify-between items-center">
+                <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 flex justify-between items-center">
                     <div>
-                        <span class="font-semibold text-slate-200">${f.name}</span>
-                        <span class="block text-[10px] text-yellow-400">가격: ${f.cost} P</span>
+                        <span class="font-semibold text-slate-200 block">${f.name}</span>
+                        <span class="text-[10px] text-yellow-400">비용: ${f.cost} pts</span>
                     </div>
-                    <button onclick="buyFrame('${f.class}', ${f.cost})" class="px-3 py-1 bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold rounded text-xs transition">적용/구매</button>
+                    <button onclick="buyFrame('${f.class}', ${f.cost})" class="px-3 py-1 bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold rounded transition text-[11px]">구매/적용</button>
                 </div>
             `).join('');
         }
@@ -268,7 +252,7 @@
                 currentUser.points = data.points;
                 localStorage.setItem('club_user_obj', JSON.stringify(currentUser));
                 initAuthView();
-                alert('프레임이 적용되었습니다!');
+                alert('스타일이 성공적으로 적용되었습니다.');
             } else {
                 alert(data.message);
             }
@@ -282,11 +266,11 @@
         }
 
         async function createPost() {
-            if (!currentUser) { alert('로그인 후 업로드 가능합니다.'); openLoginModal(); return; }
+            if (!currentUser) { alert('로그인이 필요합니다.'); openLoginModal(); return; }
             const title = document.getElementById('post-title').value.trim();
             const desc = document.getElementById('post-desc').value.trim();
             const imgInput = document.getElementById('post-img');
-            if (!title) return alert('제목을 입력해주세요.');
+            if (!title) return alert('포스트 제목을 입력해주세요.');
 
             const formData = new FormData();
             formData.append('author', currentUser.username);
@@ -321,7 +305,7 @@
 
         async function deleteUser(targetName) {
             if (currentUser.username !== '이윤호') return;
-            if (!confirm(`'${targetName}' 계정을 삭제하시겠습니까?`)) return;
+            if (!confirm(`'${targetName}' 계정을 영구 삭제하시겠습니까? 관련 데이터가 모두 소멸합니다.`)) return;
             await fetch(`/api/users/${encodeURIComponent(targetName)}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ admin: currentUser.username }) });
             fetchInitialData();
         }
@@ -329,37 +313,37 @@
         function renderFeed(posts) {
             const container = document.getElementById('feed-container');
             if (!posts || posts.length === 0) {
-                container.innerHTML = `<div class="bg-slate-800 p-8 rounded-xl border border-slate-700 text-center text-slate-400 text-sm">등록된 작품이 없습니다.</div>`;
+                container.innerHTML = `<div class="bg-slate-900 p-8 rounded-xl border border-slate-800 text-center text-slate-500 text-xs">등록된 포스트가 없습니다. 첫 기술 아카이브를 작성해보세요.</div>`;
                 return;
             }
             container.innerHTML = posts.map(p => `
-                <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 space-y-3">
-                    <div class="flex justify-between items-center text-xs text-slate-400">
-                        <span class="font-semibold text-cyan-400">${escapeStr(p.author)}</span>
+                <div class="bg-slate-900 p-6 rounded-xl border border-slate-800 space-y-4 shadow-lg">
+                    <div class="flex justify-between items-center text-xs text-slate-400 border-b border-slate-800 pb-3">
+                        <span class="font-bold text-cyan-400">@${escapeStr(p.author)}</span>
                         <div class="flex items-center gap-3">
-                            <span>${p.date}</span>
-                            ${(currentUser && (currentUser.username === p.author || currentUser.username === '이윤호')) ? `<button onclick="deletePost(${p.id})" class="text-red-400 font-bold">삭제</button>` : ''}
+                            <span class="text-[11px] text-slate-500">${p.date}</span>
+                            ${(currentUser && (currentUser.username === p.author || currentUser.username === '이윤호')) ? `<button onclick="deletePost(${p.id})" class="text-red-400 hover:text-red-300 font-bold text-[11px]">삭제</button>` : ''}
                         </div>
                     </div>
-                    <h3 class="text-base font-bold text-slate-100">${escapeStr(p.title)}</h3>
-                    ${p.desc ? `<p class="text-sm text-slate-300 whitespace-pre-wrap">${escapeStr(p.desc)}</p>` : ''}
-                    ${p.image ? `<div class="rounded-lg overflow-hidden border border-slate-700 bg-slate-900 max-h-80 flex justify-center"><img src="${p.image}" class="object-contain max-h-80"></div>` : ''}
+                    <h3 class="text-base font-bold text-slate-100 tracking-tight">${escapeStr(p.title)}</h3>
+                    ${p.desc ? `<p class="text-xs text-slate-300 whitespace-pre-wrap leading-relaxed font-mono bg-slate-950 p-3 rounded-lg border border-slate-800/80">${escapeStr(p.desc)}</p>` : ''}
+                    ${p.image ? `<div class="rounded-lg overflow-hidden border border-slate-800 bg-slate-950 flex justify-center"><img src="${p.image}" class="object-contain max-h-80"></div>` : ''}
                     
-                    <div class="border-t border-slate-700 pt-3 mt-3 space-y-2">
-                        <div class="text-xs font-semibold text-cyan-300">댓글 (${p.comments ? p.comments.length : 0})</div>
-                        <div class="space-y-1.5 max-h-32 overflow-y-auto">
+                    <div class="border-t border-slate-800 pt-3 space-y-2.5">
+                        <div class="text-[11px] font-semibold text-cyan-400 uppercase tracking-wider">Discussion (${p.comments ? p.comments.length : 0})</div>
+                        <div class="space-y-2 max-h-40 overflow-y-auto">
                             ${p.comments ? p.comments.map(c => `
-                                <div class="bg-slate-900 p-2 rounded text-xs flex justify-between items-center">
-                                    <div><span class="font-semibold text-cyan-400">${escapeStr(c.author)}:</span> <span class="text-slate-200">${escapeStr(c.text)}</span></div>
+                                <div class="bg-slate-950 p-2.5 rounded-lg border border-slate-800 text-xs flex justify-between items-center">
+                                    <div><span class="font-semibold text-cyan-400">@${escapeStr(c.author)}:</span> <span class="text-slate-300">${escapeStr(c.text)}</span></div>
                                     <div class="flex items-center gap-2">
-                                        <span class="text-[10px] text-slate-500">${c.date}</span>${(currentUser && (currentUser.username === c.author || currentUser.username === '이윤호')) ? `<button onclick="deleteComment(${p.id}, ${c.id})" class="text-red-400 font-bold text-[10px]">삭제</button>` : ''}
+                                        <span class="text-[10px] text-slate-600">${c.date}</span>${(currentUser && (currentUser.username === c.author || currentUser.username === '이윤호')) ? `<button onclick="deleteComment(${p.id}, ${c.id})" class="text-red-400 font-bold text-[10px]">삭제</button>` : ''}
                                     </div>
                                 </div>
                             `).join('') : ''}
                         </div>
-                        <div class="flex gap-2 mt-2">
-                            <input type="text" id="comment-input-${p.id}" placeholder="댓글 입력..." class="flex-1 px-3 py-1 bg-slate-700 border border-slate-600 rounded text-xs text-white focus:outline-none focus:border-cyan-400">
-                            <button onclick="addComment(${p.id})" class="px-3 py-1 bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold rounded text-xs transition">등록</button>
+                        <div class="flex gap-2 pt-1">
+                            <input type="text" id="comment-input-${p.id}" placeholder="피드백이나 의견을 남겨주세요..." class="flex-1 px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white focus:outline-none focus:border-cyan-500">
+                            <button onclick="addComment(${p.id})" class="px-4 py-1.5 bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold rounded-lg text-xs transition">작성</button>
                         </div>
                     </div>
                 </div>
@@ -371,15 +355,16 @@
             const isYunho = currentUser && currentUser.username === '이윤호';
 
             container.innerHTML = users.map(u => `
-                <div class="bg-slate-900 p-2.5 rounded-lg border border-slate-700 flex justify-between items-center text-xs">
-                    <div class="flex items-center gap-2">
-                        <img src="${u.avatar || 'https://via.placeholder.com/150'}" class="w-6 h-6 rounded-full object-cover border ${u.frame || 'border-cyan-400'}">
+                <div class="bg-slate-950 p-3 rounded-lg border border-slate-800 flex justify-between items-center text-xs">
+                    <div class="flex items-center gap-2.5">
+                        <img src="${u.avatar || 'https://via.placeholder.com/150'}" class="w-7 h-7 rounded-full object-cover border ${u.frame || 'border-cyan-500'}">
                         <div>
-                            <span class="font-semibold text-cyan-300">${escapeStr(u.username)}</span> <span class="text-yellow-400">(${u.points || 0}P)</span>
-                            ${(isYunho || canViewPassword) ? `<span class="block text-[10px] text-slate-400">PW: ${escapeStr(u.password)}</span>` : ''}
+                            <span class="font-bold text-slate-200 block">@${escapeStr(u.username)}</span>
+                            <span class="text-[10px] text-yellow-400 font-medium">${u.points || 0} pts</span>
+                            ${(isYunho || canViewPassword) ? `<span class="block text-[10px] text-slate-400 font-mono">PW: ${escapeStr(u.password)}</span>` : ''}
                         </div>
                     </div>
-                    ${isYunho ? `<button onclick="deleteUser('${u.username}')" class="px-2 py-1 bg-red-500/20 text-red-400 rounded text-[10px]">계정 삭제</button>` : ''}
+                    ${isYunho ? `<button onclick="deleteUser('${u.username}')" class="px-2.5 py-1 bg-red-500/10 text-red-400 hover:bg-red-500/20 rounded text-[10px] border border-red-500/20 transition">계정 삭제</button>` : ''}
                 </div>
             `).join('');
         }
@@ -387,89 +372,6 @@
         function escapeStr(str) {
             if (!str) return '';
             return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
-        }
-
-        // --- 2D 실시간 멀티 탱크대전 게임 로직 ---
-        let gameInterval = null;
-        function openGameModal() {
-            if (!currentUser) { alert('로그인이 필요합니다!'); openLoginModal(); return; }
-            document.getElementById('game-modal').classList.remove('hidden');
-            initTankGame();
-        }
-        function closeGameModal() {
-            document.getElementById('game-modal').classList.add('hidden');
-            if (gameInterval) clearInterval(gameInterval);
-            socket.emit('leave_tank_game');
-        }
-
-        function initTankGame() {
-            const canvas = document.getElementById('tankCanvas');
-            const ctx = canvas.getContext('2d');
-
-            let myX = 100, myY = 100, myAngle = 0;
-            let keys = {};
-            let mouseX = 0, mouseY = 0;
-
-            window.onkeydown = (e) => { keys[e.code] = true; };
-            window.onkeyup = (e) => { keys[e.code] = false; };
-            canvas.onmousemove = (e) => {
-                const rect = canvas.getBoundingClientRect();
-                mouseX = e.clientX - rect.left;
-                mouseY = e.clientY - rect.top;
-            };
-            canvas.onmousedown = () => {
-                socket.emit('tank_shoot', { x: myX, y: myY, angle: myAngle });
-            };
-
-            socket.emit('join_tank_game', { username: currentUser.username, x: myX, y: myY });
-
-            socket.on('tank_game_state', (data) => {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-                // 플레이어 탱크들 렌더링
-                Object.values(data.players).forEach(p => {
-                    ctx.save();
-                    ctx.translate(p.x, p.y);
-                    ctx.rotate(p.angle || 0);
-                    ctx.fillStyle = p.username === currentUser.username ? '#22d3ee' : '#f43f5e';
-                    ctx.fillRect(-15, -15, 30, 30);
-                    ctx.fillStyle = '#facc15';
-                    ctx.fillRect(0, -4, 25, 8); // 포신
-                    ctx.restore();
-
-                    ctx.fillStyle = '#ffffff';
-                    ctx.font = '11px sans-serif';
-                    ctx.fillText(p.username, p.x - 15, p.y - 22);
-                });
-
-                // 총알 렌더링
-                if (data.bullets) {
-                    ctx.fillStyle = '#facc15';
-                    data.bullets.forEach(b => {
-                        ctx.beginPath();
-                        ctx.arc(b.x, b.y, 4, 0, Math.PI * 2);
-                        ctx.fill();
-                    });
-                }
-            });
-
-            if (gameInterval) clearInterval(gameInterval);
-            gameInterval = setInterval(() => {
-                let speed = 3;
-                if (keys['KeyW'] || keys['ArrowUp']) myY -= speed;
-                if (keys['KeyS'] || keys['ArrowDown']) myY += speed;
-                if (keys['KeyA'] || keys['ArrowLeft']) myX -= speed;
-                if (keys['KeyD'] || keys['ArrowRight']) myX += speed;
-
-                // 화면 밖으로 못 나가게 제한
-                myX = Math.max(20, Math.min(canvas.width - 20, myX));
-                myY = Math.max(20, Math.min(canvas.height - 20, myY));
-
-                // 마우스 방향으로 각도 조절
-                myAngle = Math.atan2(mouseY - myY, mouseX - myX);
-
-                socket.emit('tank_move', { x: myX, y: myY, angle: myAngle });
-            }, 1000 / 60);
         }
     </script>
 </body>
