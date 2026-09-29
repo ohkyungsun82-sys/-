@@ -6,83 +6,130 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 업로드된 파일이 저장될 폴더 생성
 const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir);
 }
 
-// 데이터가 영구 저장될 JSON 파일 경로
 const dataFile = path.join(__dirname, 'posts.json');
+const usersFile = path.join(__dirname, 'users.json');
 
-// 게시글 데이터 불러오기 함수
-function loadPosts() {
-    if (fs.existsSync(dataFile)) {
+function loadData(file) {
+    if (fs.existsSync(file)) {
         try {
-            const data = fs.readFileSync(dataFile, 'utf8');
-            return JSON.parse(data);
-        } catch (e) {
-            return [];
-        }
+            return JSON.parse(fs.readFileSync(file, 'utf8'));
+        } catch (e) { return []; }
     }
     return [];
 }
 
-// 게시글 데이터 저장하기 함수
-function savePosts(posts) {
-    fs.writeFileSync(dataFile, JSON.stringify(posts, null, 2), 'utf8');
+function saveData(file, data) {
+    fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
 }
 
-// 미들웨어 설정
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use('/uploads', express.static(uploadDir));
 
-// 파일 업로드 설정 (Multer)
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, uploadDir);
-    },
+    destination: (req, file, cb) => cb(null, uploadDir),
     filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, uniqueSuffix + path.extname(file.originalname));
+        cb(null, Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname));
     }
 });
 const upload = multer({ storage: storage });
 
-// 1. 게시글 목록 조회 API (파일에서 실시간 로드)
-app.get('/api/posts', (req, res) => {
-    const posts = loadPosts();
-    res.json(posts);
+// 1. 로그인 / 회원가입 API (비밀번호 검증)
+app.post('/api/login', (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) {
+        return res.json({ success: false, message: '이름과 비밀번호를 입력해주세요.' });
+    }
+    const users = loadData(usersFile);
+    let user = users.find(u => u.username === username);
+
+    if (user) {
+        if (user.password !== password) {
+            return res.json({ success: false, message: '비밀번호가 틀렸습니다.' });
+        }
+    } else {
+        users.push({ username, password });
+        saveData(usersFile, users);
+    }
+    res.json({ success: true, username });
 });
 
-// 2. 게시글 작성 API (파일에 즉시 저장)
+// 2. 게시글 목록 조회
+app.get('/api/posts', (req, res) => {
+    res.json(loadData(dataFile));
+});
+
+// 3. 게시글 작성
 app.post('/api/posts', upload.single('image'), (req, res) => {
     const { author, title, desc } = req.body;
-    
     if (!author || !title) {
-        return res.status(400).json({ success: false, message: '작성자와 제목은 필수입니다.' });
+        return res.status(400).json({ success: false, message: '필수 항목이 누락되었습니다.' });
     }
 
-    const posts = loadPosts();
-
+    const posts = loadData(dataFile);
     const newPost = {
         id: Date.now(),
         author,
         title,
         desc: desc || '',
         image: req.file ? `/uploads/${req.file.filename}` : null,
-        date: new Date().toLocaleDateString()
+        date: new Date().toLocaleDateString(),
+        comments: []
     };
 
     posts.unshift(newPost);
-    savePosts(posts); // 파일에 저장
-
+    saveData(dataFile, posts);
     res.json({ success: true, post: newPost });
 });
 
-// 서버 실행
+// 4. 게시글 삭제 (본인 혹은 '이윤호' 계정이면 삭제 가능)
+app.delete('/api/posts/:id', (req, res) => {
+    const postId = Number(req.params.id);
+    const { username } = req.body;
+
+    let posts = loadData(dataFile);
+    const post = posts.find(p => p.id === postId);
+
+    if (!post) return res.json({ success: false, message: '게시글이 없습니다.' });
+
+    if (username !== post.author && username !== '이윤호') {
+        return res.json({ success: false, message: '삭제 권한이 없습니다.' });
+    }
+
+    posts = posts.filter(p => p.id !== postId);
+    saveData(dataFile, posts);
+    res.json({ success: true });
+});
+
+// 5. 댓글 작성 API
+app.post('/api/posts/:id/comments', (req, res) => {
+    const postId = Number(req.params.id);
+    const { author, text } = req.body;
+
+    if (!author || !text) return res.json({ success: false, message: '내용을 입력해주세요.' });
+
+    let posts = loadData(dataFile);
+    const post = posts.find(p => p.id === postId);
+
+    if (!post) return res.json({ success: false, message: '게시글이 없습니다.' });
+
+    if (!post.comments) post.comments = [];
+    post.comments.push({
+        author,
+        text,
+        date: new Date().toLocaleDateString()
+    });
+
+    saveData(dataFile, posts);
+    res.json({ success: true });
+});
+
 app.listen(PORT, () => {
-    console.log(`서버가 실행 중입니다: http://localhost:${PORT}`);
+    console.log(`Server running on port ${PORT}`);
 });
