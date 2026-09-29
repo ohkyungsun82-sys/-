@@ -41,45 +41,68 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
-let activePlayers = {};
+let tankPlayers = {};
+let bullets = [];
+
+// 탱크 게임 루프 (총알 이동 및 피격 판정)
+setInterval(() => {
+    // 총알 이동
+    bullets.forEach(b => {
+        b.x += Math.cos(b.angle) * 7;
+        b.y += Math.sin(b.angle) * 7;
+    });
+
+    // 화면 밖으로 나간 총알 제거
+    bullets = bullets.filter(b => b.x >= 0 && b.x <= 680 && b.y >= 0 && b.y <= 400);
+
+    // 피격 판정
+    let users = loadData(usersFile);
+    bullets.forEach((b, bIdx) => {
+        Object.entries(tankPlayers).forEach(([socketId, p]) => {
+            if (p.username !== b.owner && Math.hypot(p.x - b.x, p.y - b.y) < 20) {
+                // 적 탱크 맞힘! 총알 제거 및 발사자 포인트 지급
+                bullets.splice(bIdx, 1);
+                let shooter = users.find(u => u.username === b.owner);
+                if (shooter) {
+                    shooter.points = (shooter.points || 0) + 30;
+                    saveData(usersFile, users);
+                    io.emit('update_users', users);
+                }
+            }
+        });
+    });
+
+    io.emit('tank_game_state', { players: tankPlayers, bullets });
+}, 1000 / 60);
 
 io.on('connection', (socket) => {
     socket.emit('update_posts', loadData(dataFile));
     socket.emit('update_users', loadData(usersFile));
 
-    socket.on('join_game', (data) => {
-        activePlayers[socket.id] = { username: data.username, x: data.x, y: data.y };
-        io.emit('game_players', activePlayers);
+    socket.on('join_tank_game', (data) => {
+        tankPlayers[socket.id] = { username: data.username, x: data.x, y: data.y, angle: 0 };
     });
 
-    socket.on('player_move', (pos) => {
-        if (activePlayers[socket.id]) {
-            activePlayers[socket.id].x = pos.x;
-            activePlayers[socket.id].y = pos.y;
-            io.emit('game_players', activePlayers);
+    socket.on('tank_move', (pos) => {
+        if (tankPlayers[socket.id]) {
+            tankPlayers[socket.id].x = pos.x;
+            tankPlayers[socket.id].y = pos.y;
+            tankPlayers[socket.id].angle = pos.angle;
         }
     });
 
-    socket.on('win_game', () => {
-        if (activePlayers[socket.id]) {
-            let users = loadData(usersFile);
-            let user = users.find(u => u.username === activePlayers[socket.id].username);
-            if (user) {
-                user.points = (user.points || 0) + 50;
-                saveData(usersFile, users);
-                io.emit('update_users', users);
-            }
+    socket.on('tank_shoot', (data) => {
+        if (tankPlayers[socket.id]) {
+            bullets.push({ owner: tankPlayers[socket.id].username, x: data.x, y: data.y, angle: data.angle });
         }
     });
 
-    socket.on('leave_game', () => {
-        delete activePlayers[socket.id];
-        io.emit('game_players', activePlayers);
+    socket.on('leave_tank_game', () => {
+        delete tankPlayers[socket.id];
     });
 
     socket.on('disconnect', () => {
-        delete activePlayers[socket.id];
-        io.emit('game_players', activePlayers);
+        delete tankPlayers[socket.id];
     });
 });
 
