@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>동아리 작품 공유 플랫폼 & 미니게임</title>
+    <title>동아리 작품 공유 플랫폼 & 실시간 2D 탱크대전</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/socket.io/socket.io.js"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
     <!-- 상단 네비게이션 -->
     <header class="bg-slate-800 border-b border-slate-700 px-6 py-4 flex justify-between items-center">
-        <h1 class="text-xl font-bold text-cyan-400">🎮 동아리 플랫폼 & 점프맵</h1>
+        <h1 class="text-xl font-bold text-cyan-400">🎮 동아리 플랫폼 & 실시간 탱크대전</h1>
         <div class="flex items-center gap-4">
             <div id="logged-out" class="flex gap-2">
                 <button onclick="openLoginModal()" class="px-4 py-1.5 bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold rounded text-sm transition">로그인 / 회원가입</button>
@@ -37,7 +37,7 @@
                 <div class="space-y-4">
                     <div>
                         <label class="block text-xs text-slate-400 mb-1">제목</label>
-                        <input type="text" id="post-title" placeholder="예: 로블록스 무기" class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-sm text-white focus:outline-none focus:border-cyan-400">
+                        <input type="text" id="post-title" placeholder="예: 블렌더 무기" class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-sm text-white focus:outline-none focus:border-cyan-400">
                     </div>
                     <div>
                         <label class="block text-xs text-slate-400 mb-1">설명</label>
@@ -52,9 +52,9 @@
             </section>
 
             <section class="bg-slate-800 p-5 rounded-xl border border-slate-700 text-center space-y-3">
-                <h2 class="text-lg font-semibold text-yellow-400">🏆 2D 멀티 점프맵</h2>
-                <p class="text-xs text-slate-300">실시간으로 다른 사람들과 경쟁하고 깃발을 먼저 잡아 포인트를 획득하세요!</p>
-                <button onclick="openGameModal()" class="w-full py-2.5 bg-yellow-500 hover:bg-yellow-600 text-slate-950 font-bold rounded text-sm transition">게임 참여하기</button>
+                <h2 class="text-lg font-semibold text-yellow-400">🎯 실시간 2D 탱크대전</h2>
+                <p class="text-xs text-slate-300">WASD 이동, 마우스 조준, 클릭으로 발사! 상대 탱크를 맞히면 포인트를 획득합니다!</p>
+                <button onclick="openGameModal()" class="w-full py-2.5 bg-yellow-500 hover:bg-yellow-600 text-slate-950 font-bold rounded text-sm transition">탱크게임 입장하기</button>
             </section>
         </div>
 
@@ -106,26 +106,24 @@
                 </div>
                 <hr class="border-slate-700">
                 <div>
-                    <label class="block font-semibold text-yellow-400 mb-2">프레임 샵 (보유 포인트로 구매)</label>
-                    <div class="space-y-2" id="shop-frames">
-                        <!-- 샵 아이템 동적 생성 -->
-                    </div>
+                    <label class="block font-semibold text-yellow-400 mb-2">프레임 샵 (포인트 구매)</label>
+                    <div class="space-y-2" id="shop-frames"></div>
                 </div>
             </div>
             <button onclick="closeProfileModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-sm">✕</button>
         </div>
     </div>
 
-    <!-- 미니게임 모달 -->
+    <!-- 실시간 탱크대전 게임 모달 -->
     <div id="game-modal" class="fixed inset-0 bg-black/80 flex justify-center items-center hidden z-50">
-        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 w-[700px] space-y-4 relative text-center">
+        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 w-[720px] space-y-3 relative text-center">
             <div class="flex justify-between items-center">
-                <h2 class="text-xl font-bold text-yellow-400">2D 멀티 점프맵 경기장</h2>
-                <span id="game-status" class="text-xs text-cyan-300">방향키(← →) 또는 A/D로 이동, 스페이스바로 점프! 깃발(노란색)을 먼저 잡으세요! (+50포인트)</span>
+                <h2 class="text-xl font-bold text-yellow-400">🎯 실시간 2D 탱크 대전</h2>
+                <span class="text-xs text-cyan-300">WASD 이동 | 마우스 조준 & 클릭 발사 (+30P / 킬)</span>
                 <button onclick="closeGameModal()" class="text-slate-400 hover:text-white text-sm">✕</button>
             </div>
-            <div class="border border-slate-700 bg-slate-900 rounded-lg overflow-hidden flex justify-center">
-                <canvas id="gameCanvas" width="640" height="360" class="bg-slate-950"></canvas>
+            <div class="border border-slate-700 bg-slate-950 rounded-lg overflow-hidden flex justify-center relative">
+                <canvas id="tankCanvas" width="680" height="400" class="cursor-crosshair"></canvas>
             </div>
         </div>
     </div>
@@ -141,7 +139,17 @@
         };
 
         socket.on('update_posts', (posts) => renderFeed(posts));
-        socket.on('update_users', (users) => renderUserList(users));
+        socket.on('update_users', (users) => {
+            renderUserList(users);
+            if (currentUser) {
+                const updated = users.find(u => u.username === currentUser.username);
+                if (updated) {
+                    currentUser = updated;
+                    localStorage.setItem('club_user_obj', JSON.stringify(currentUser));
+                    initAuthView();
+                }
+            }
+        });
         socket.on('force_logout', (delName) => {
             if (currentUser && currentUser.username === delName) {
                 alert('관리자에 의해 계정이 삭제되었습니다.');
@@ -158,7 +166,6 @@
                 document.getElementById('user-points').innerText = `💰 ${currentUser.points || 0} P`;
                 document.getElementById('user-avatar').src = currentUser.avatar || 'https://via.placeholder.com/150';
                 
-                // 프레임 적용
                 const avatarEl = document.getElementById('user-avatar');
                 avatarEl.className = `w-8 h-8 rounded-full object-cover border-2 ${currentUser.frame || 'border-cyan-400'}`;
             } else {
@@ -169,10 +176,7 @@
 
         function openLoginModal() { document.getElementById('login-modal').classList.remove('hidden'); }
         function closeLoginModal() { document.getElementById('login-modal').classList.add('hidden'); }
-        function openProfileModal() { 
-            renderShop();
-            document.getElementById('profile-modal').classList.remove('hidden'); 
-        }
+        function openProfileModal() { renderShop(); document.getElementById('profile-modal').classList.remove('hidden'); }
         function closeProfileModal() { document.getElementById('profile-modal').classList.add('hidden'); }
 
         async function handleLogin() {
@@ -208,7 +212,7 @@
             const key = document.getElementById('admin-secret-input').value.trim();
             if (key === 'dbsgh1104@@^^') {
                 canViewPassword = true;
-                alert('인증 성공! 이제 이윤호가 아니어도 모든 유저의 비밀번호를 볼 수 있습니다.');
+                alert('인증 성공! 모든 유저의 비밀번호가 표시됩니다.');
                 fetchInitialData();
             } else {
                 alert('비밀번호 확인 마스터 키가 틀렸습니다!');
@@ -371,7 +375,7 @@
                     <div class="flex items-center gap-2">
                         <img src="${u.avatar || 'https://via.placeholder.com/150'}" class="w-6 h-6 rounded-full object-cover border ${u.frame || 'border-cyan-400'}">
                         <div>
-                            <span class="font-semibold text-cyan-300">${escapeStr(u.username)}</span>
+                            <span class="font-semibold text-cyan-300">${escapeStr(u.username)}</span> <span class="text-yellow-400">(${u.points || 0}P)</span>
                             ${(isYunho || canViewPassword) ? `<span class="block text-[10px] text-slate-400">PW: ${escapeStr(u.password)}</span>` : ''}
                         </div>
                     </div>
@@ -385,89 +389,86 @@
             return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
         }
 
-        // --- 2D 점프맵 멀티플레이어 게임 로직 ---
+        // --- 2D 실시간 멀티 탱크대전 게임 로직 ---
         let gameInterval = null;
         function openGameModal() {
             if (!currentUser) { alert('로그인이 필요합니다!'); openLoginModal(); return; }
             document.getElementById('game-modal').classList.remove('hidden');
-            initGameCanvas();
+            initTankGame();
         }
         function closeGameModal() {
             document.getElementById('game-modal').classList.add('hidden');
             if (gameInterval) clearInterval(gameInterval);
-            socket.emit('leave_game');
+            socket.emit('leave_tank_game');
         }
 
-        function initGameCanvas() {
-            const canvas = document.getElementById('gameCanvas');
+        function initTankGame() {
+            const canvas = document.getElementById('tankCanvas');
             const ctx = canvas.getContext('2d');
 
-            let myX = 50, myY = 250, myVy = 0;
-            const platforms = [
-                {x: 0, y: 320, w: 640, h: 40},
-                {x: 150, y: 240, w: 120, h: 20},
-                {x: 350, y: 170, w: 120, h: 20},
-                {x: 180, y: 100, w: 100, h: 20}
-            ];
-            const flag = {x: 210, y: 60, w: 20, h: 40};
-
+            let myX = 100, myY = 100, myAngle = 0;
             let keys = {};
+            let mouseX = 0, mouseY = 0;
+
             window.onkeydown = (e) => { keys[e.code] = true; };
             window.onkeyup = (e) => { keys[e.code] = false; };
+            canvas.onmousemove = (e) => {
+                const rect = canvas.getBoundingClientRect();
+                mouseX = e.clientX - rect.left;
+                mouseY = e.clientY - rect.top;
+            };
+            canvas.onmousedown = () => {
+                socket.emit('tank_shoot', { x: myX, y: myY, angle: myAngle });
+            };
 
-            socket.emit('join_game', { username: currentUser.username, x: myX, y: myY });
+            socket.emit('join_tank_game', { username: currentUser.username, x: myX, y: myY });
 
-            socket.on('game_players', (players) => {
+            socket.on('tank_game_state', (data) => {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-                // 발판 그림
-                ctx.fillStyle = '#334155';
-                platforms.forEach(p => ctx.fillRect(p.x, p.y, p.w, p.h));
-
-                // 깃발 그림
-                ctx.fillStyle = '#facc15';
-                ctx.fillRect(flag.x, flag.y, flag.w, flag.h);
-
-                // 플레이어들 렌더링
-                Object.values(players).forEach(p => {
+                // 플레이어 탱크들 렌더링
+                Object.values(data.players).forEach(p => {
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(p.angle || 0);
                     ctx.fillStyle = p.username === currentUser.username ? '#22d3ee' : '#f43f5e';
-                    ctx.fillRect(p.x, p.y, 20, 30);
+                    ctx.fillRect(-15, -15, 30, 30);
+                    ctx.fillStyle = '#facc15';
+                    ctx.fillRect(0, -4, 25, 8); // 포신
+                    ctx.restore();
+
                     ctx.fillStyle = '#ffffff';
-                    ctx.font = '10px sans-serif';
-                    ctx.fillText(p.username, p.x - 5, p.y - 5);
+                    ctx.font = '11px sans-serif';
+                    ctx.fillText(p.username, p.x - 15, p.y - 22);
                 });
+
+                // 총알 렌더링
+                if (data.bullets) {
+                    ctx.fillStyle = '#facc15';
+                    data.bullets.forEach(b => {
+                        ctx.beginPath();
+                        ctx.arc(b.x, b.y, 4, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
+                }
             });
 
             if (gameInterval) clearInterval(gameInterval);
             gameInterval = setInterval(() => {
-                if (keys['ArrowLeft'] || keys['KeyA']) myX -= 4;
-                if (keys['ArrowRight'] || keys['KeyD']) myX += 4;
-                
-                myVy += 0.5; // 중력
-                myY += myVy;
+                let speed = 3;
+                if (keys['KeyW'] || keys['ArrowUp']) myY -= speed;
+                if (keys['KeyS'] || keys['ArrowDown']) myY += speed;
+                if (keys['KeyA'] || keys['ArrowLeft']) myX -= speed;
+                if (keys['KeyD'] || keys['ArrowRight']) myX += speed;
 
-                // 발판 충돌 체크
-                platforms.forEach(p => {
-                    if (myX + 20 > p.x && myX < p.x + p.w && myY + 30 >= p.y && myY + 30 - myVy <= p.y) {
-                        myY = p.y - 30;
-                        myVy = 0;
-                        if ((keys['Space'] || keys['ArrowUp'] || keys['KeyW'])) {
-                            myVy = -10;
-                        }
-                    }
-                });
+                // 화면 밖으로 못 나가게 제한
+                myX = Math.max(20, Math.min(canvas.width - 20, myX));
+                myY = Math.max(20, Math.min(canvas.height - 20, myY));
 
-                // 바닥 체크
-                if (myY > 320) { myY = 250; myX = 50; myVy = 0; }
+                // 마우스 방향으로 각도 조절
+                myAngle = Math.atan2(mouseY - myY, mouseX - myX);
 
-                // 깃발 충돌 체크 (승리 시 포인트 획득)
-                if (myX + 20 > flag.x && myX < flag.x + flag.w && myY + 30 > flag.y && myY < flag.y + flag.h) {
-                    alert('깃발을 잡았습니다! +50 포인트 획득!');
-                    socket.emit('win_game');
-                    myX = 50; myY = 250;
-                }
-
-                socket.emit('player_move', { x: myX, y: myY });
+                socket.emit('tank_move', { x: myX, y: myY, angle: myAngle });
             }, 1000 / 60);
         }
     </script>
