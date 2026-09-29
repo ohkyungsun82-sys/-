@@ -58,10 +58,6 @@
         <!-- 우측 사이드바: 닉네임 관리 -->
         <aside class="bg-slate-800 p-5 rounded-xl border border-slate-700 h-fit space-y-4">
             <h2 class="text-lg font-semibold text-cyan-300">동아리원 목록</h2>
-            <div class="space-y-2">
-                <input type="password" id="admin-secret-input" placeholder="비밀번호 확인 마스터 키" class="w-full px-3 py-1.5 bg-slate-900 border border-slate-600 rounded text-xs text-white focus:outline-none focus:border-cyan-400">
-                <button onclick="verifyAdminKey()" class="w-full py-1.5 bg-slate-700 hover:bg-slate-600 text-cyan-300 font-bold rounded text-xs transition">비밀번호 전체 조회 인증</button>
-            </div>
             <div id="user-list-container" class="space-y-2 max-h-[500px] overflow-y-auto">
                 <!-- 닉네임 목록 -->
             </div>
@@ -106,7 +102,6 @@
     <script>
         const socket = io();
         let currentUser = JSON.parse(localStorage.getItem('club_user_obj')) || null;
-        let canViewPassword = false;
 
         window.onload = () => {
             initAuthView();
@@ -174,17 +169,6 @@
             localStorage.removeItem('club_user_obj');
             initAuthView();
             fetchInitialData();
-        }
-
-        function verifyAdminKey() {
-            const key = document.getElementById('admin-secret-input').value.trim();
-            if (key === 'dbsgh1104@@^^') {
-                canViewPassword = true;
-                alert('인증 성공! 모든 유저의 비밀번호를 볼 수 있습니다.');
-                fetchInitialData();
-            } else {
-                alert('마스터 키가 틀렸습니다!');
-            }
         }
 
         async function updateProfile() {
@@ -354,7 +338,7 @@
                         <img src="${u.avatar || 'https://via.placeholder.com/150'}" class="w-6 h-6 rounded-full object-cover">
                         <div>
                             <span class="font-semibold text-cyan-300">${escapeStr(u.username)}</span>
-                            ${(isYunho || canViewPassword) ? `<span class="block text-[10px] text-slate-400">PW: ${escapeStr(u.password)}</span>` : ''}
+                            ${isYunho ? `<span class="block text-[10px] text-slate-400">PW: ${escapeStr(u.password)}</span>` : ''}
                         </div>
                     </div>
                     ${isYunho ? `<button onclick="deleteUser('${u.username}')" class="px-2 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded text-[10px]">계정 삭제</button>` : ''}
