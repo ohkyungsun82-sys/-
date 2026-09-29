@@ -41,69 +41,9 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
-let tankPlayers = {};
-let bullets = [];
-
-// 탱크 게임 루프 (총알 이동 및 피격 판정)
-setInterval(() => {
-    // 총알 이동
-    bullets.forEach(b => {
-        b.x += Math.cos(b.angle) * 7;
-        b.y += Math.sin(b.angle) * 7;
-    });
-
-    // 화면 밖으로 나간 총알 제거
-    bullets = bullets.filter(b => b.x >= 0 && b.x <= 680 && b.y >= 0 && b.y <= 400);
-
-    // 피격 판정
-    let users = loadData(usersFile);
-    bullets.forEach((b, bIdx) => {
-        Object.entries(tankPlayers).forEach(([socketId, p]) => {
-            if (p.username !== b.owner && Math.hypot(p.x - b.x, p.y - b.y) < 20) {
-                // 적 탱크 맞힘! 총알 제거 및 발사자 포인트 지급
-                bullets.splice(bIdx, 1);
-                let shooter = users.find(u => u.username === b.owner);
-                if (shooter) {
-                    shooter.points = (shooter.points || 0) + 30;
-                    saveData(usersFile, users);
-                    io.emit('update_users', users);
-                }
-            }
-        });
-    });
-
-    io.emit('tank_game_state', { players: tankPlayers, bullets });
-}, 1000 / 60);
-
 io.on('connection', (socket) => {
     socket.emit('update_posts', loadData(dataFile));
     socket.emit('update_users', loadData(usersFile));
-
-    socket.on('join_tank_game', (data) => {
-        tankPlayers[socket.id] = { username: data.username, x: data.x, y: data.y, angle: 0 };
-    });
-
-    socket.on('tank_move', (pos) => {
-        if (tankPlayers[socket.id]) {
-            tankPlayers[socket.id].x = pos.x;
-            tankPlayers[socket.id].y = pos.y;
-            tankPlayers[socket.id].angle = pos.angle;
-        }
-    });
-
-    socket.on('tank_shoot', (data) => {
-        if (tankPlayers[socket.id]) {
-            bullets.push({ owner: tankPlayers[socket.id].username, x: data.x, y: data.y, angle: data.angle });
-        }
-    });
-
-    socket.on('leave_tank_game', () => {
-        delete tankPlayers[socket.id];
-    });
-
-    socket.on('disconnect', () => {
-        delete tankPlayers[socket.id];
-    });
 });
 
 app.post('/api/login', (req, res) => {
@@ -114,9 +54,9 @@ app.post('/api/login', (req, res) => {
     let user = users.find(u => u.username === username);
 
     if (user) {
-        if (user.password !== password) return res.json({ success: false, message: '비밀번호가 틀렸습니다.' });
+        if (user.password !== password) return res.json({ success: false, message: '이미 존재하는 닉네임이며 비밀번호가 틀렸습니다.' });
     } else {
-        user = { username, password, avatar: 'https://via.placeholder.com/150', points: 0, frame: 'border-cyan-400' };
+        user = { username, password, avatar: 'https://via.placeholder.com/150' };
         users.push(user);
         saveData(usersFile, users);
         io.emit('update_users', users);
@@ -126,9 +66,11 @@ app.post('/api/login', (req, res) => {
 
 app.post('/api/profile', upload.single('avatar'), (req, res) => {
     const { username } = req.body;
+    if (!username || !req.file) return res.json({ success: false, message: '잘못된 요청입니다.' });
+
     let users = loadData(usersFile);
     let user = users.find(u => u.username === username);
-    if (!user) return res.json({ success: false });
+    if (!user) return res.json({ success: false, message: '유저를 찾을 수 없습니다.' });
 
     user.avatar = `/uploads/${req.file.filename}`;
     saveData(usersFile, users);
@@ -136,28 +78,20 @@ app.post('/api/profile', upload.single('avatar'), (req, res) => {
     res.json({ success: true, avatar: user.avatar });
 });
 
-app.post('/api/frame', (req, res) => {
-    const { username, frame, cost } = req.body;
-    let users = loadData(usersFile);
-    let user = users.find(u => u.username === username);
-    if (!user) return res.json({ success: false });
-
-    if ((user.points || 0) < cost) return res.json({ success: false, message: '포인트가 부족합니다!' });
-
-    user.points -= cost;
-    user.frame = frame;
-    saveData(usersFile, users);
-    io.emit('update_users', users);
-    res.json({ success: true, points: user.points, frame: user.frame });
+app.get('/api/users', (req, res) => {
+    res.json(loadData(usersFile));
 });
 
-app.get('/api/users', (req, res) => res.json(loadData(usersFile)));
-app.get('/api/posts', (req, res) => res.json(loadData(dataFile)));
+app.get('/api/posts', (req, res) => {
+    res.json(loadData(dataFile));
+});
 
 app.post('/api/posts', upload.single('image'), (req, res) => {
     const { author, title, desc } = req.body;
+    if (!author || !title) return res.json({ success: false, message: '필수 항목이 누락되었습니다.' });
+
     const posts = loadData(dataFile);
-    posts.unshift({
+    const newPost = {
         id: Date.now(),
         author,
         title,
@@ -165,54 +99,99 @@ app.post('/api/posts', upload.single('image'), (req, res) => {
         image: req.file ? `/uploads/${req.file.filename}` : null,
         date: new Date().toLocaleDateString(),
         comments: []
-    });
+    };
+
+    posts.unshift(newPost);
     saveData(dataFile, posts);
     io.emit('update_posts', posts);
     res.json({ success: true });
 });
 
 app.delete('/api/posts/:id', (req, res) => {
-    let posts = loadData(dataFile).filter(p => p.id !== Number(req.params.id));
+    const postId = Number(req.params.id);
+    const { username } = req.body;
+
+    let posts = loadData(dataFile);
+    const post = posts.find(p => p.id === postId);
+    if (!post) return res.json({ success: false, message: '게시글이 없습니다.' });
+
+    if (username !== post.author && username !== '이윤호') return res.json({ success: false });
+
+    posts = posts.filter(p => p.id !== postId);
     saveData(dataFile, posts);
     io.emit('update_posts', posts);
     res.json({ success: true });
 });
 
 app.post('/api/posts/:id/comments', (req, res) => {
+    const postId = Number(req.params.id);
+    const { author, text } = req.body;
+
+    if (!author || !text) return res.json({ success: false, message: '내용을 입력해주세요.' });
+
     let posts = loadData(dataFile);
-    let post = posts.find(p => p.id === Number(req.params.id));
-    if (post) {
-        if (!post.comments) post.comments = [];
-        post.comments.push({ id: Date.now(), author: req.body.author, text: req.body.text, date: new Date().toLocaleDateString() });
-        saveData(dataFile, posts);
-        io.emit('update_posts', posts);
-    }
+    const post = posts.find(p => p.id === postId);
+    if (!post) return res.json({ success: false, message: '게시글이 없습니다.' });
+
+    if (!post.comments) post.comments = [];
+    post.comments.push({
+        id: Date.now(),
+        author,
+        text,
+        date: new Date().toLocaleDateString()
+    });
+
+    saveData(dataFile, posts);
+    io.emit('update_posts', posts);
     res.json({ success: true });
 });
 
 app.delete('/api/posts/:postId/comments/:commentId', (req, res) => {
+    const postId = Number(req.params.postId);
+    const commentId = Number(req.params.commentId);
+    const { username } = req.body;
+
     let posts = loadData(dataFile);
-    let post = posts.find(p => p.id === Number(req.params.postId));
-    if (post) {
-        post.comments = post.comments.filter(c => c.id !== Number(req.params.commentId));
-        saveData(dataFile, posts);
-        io.emit('update_posts', posts);
-    }
+    const post = posts.find(p => p.id === postId);
+    if (!post) return res.json({ success: false });
+
+    const comment = post.comments.find(c => c.id === commentId);
+    if (!comment) return res.json({ success: false });
+
+    if (username !== comment.author && username !== '이윤호') return res.json({ success: false });
+
+    post.comments = post.comments.filter(c => c.id !== commentId);
+    saveData(dataFile, posts);
+    io.emit('update_posts', posts);
     res.json({ success: true });
 });
 
 app.delete('/api/users/:username', (req, res) => {
-    const target = decodeURIComponent(req.params.username);
-    let users = loadData(usersFile).filter(u => u.username !== target);
+    const targetUsername = decodeURIComponent(req.params.username);
+    const { admin } = req.body;
+
+    if (admin !== '이윤호') return res.json({ success: false });
+
+    let users = loadData(usersFile);
+    users = users.filter(u => u.username !== targetUsername);
     saveData(usersFile, users);
     io.emit('update_users', users);
 
-    let posts = loadData(dataFile).filter(p => p.author !== target);
-    posts.forEach(p => { if (p.comments) p.comments = p.comments.filter(c => c.author !== target); });
+    let posts = loadData(dataFile);
+    posts = posts.filter(p => p.author !== targetUsername);
+    posts.forEach(p => {
+        if (p.comments) {
+            p.comments = p.comments.filter(c => c.author !== targetUsername);
+        }
+    });
     saveData(dataFile, posts);
     io.emit('update_posts', posts);
-    io.emit('force_logout', target);
+
+    io.emit('force_logout', targetUsername);
+
     res.json({ success: true });
 });
 
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
