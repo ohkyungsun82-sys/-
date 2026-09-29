@@ -7,145 +7,218 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
-    <!-- 네비게이션 바 -->
+    <!-- 상단 네비게이션 -->
     <header class="bg-slate-800 border-b border-slate-700 px-6 py-4 flex justify-between items-center">
-        <h1 class="text-xl font-bold text-cyan-400">🎮 동아리 작품 공유 커뮤니티</h1>
-        <div id="auth-container" class="flex items-center gap-4">
-            <!-- 로그인 전 -->
-            <div id="logged-out-view" class="flex gap-2">
-                <input type="text" id="username-input" placeholder="이름을 입력하세요" class="px-3 py-1.5 bg-slate-700 border border-slate-600 rounded text-sm focus:outline-none focus:border-cyan-400">
-                <button onclick="login()" class="px-4 py-1.5 bg-cyan-500 hover:bg-cyan-600 font-semibold rounded text-sm transition">로그인</button>
+        <h1 class="text-xl font-bold text-cyan-400">🎮 동아리 작품 공유소</h1>
+        <div class="flex items-center gap-4">
+            <div id="logged-out" class="flex gap-2">
+                <input type="text" id="username" placeholder="이름" class="px-3 py-1.5 bg-slate-700 border border-slate-600 rounded text-sm text-white focus:outline-none focus:border-cyan-400 w-28">
+                <input type="password" id="password" placeholder="비밀번호" class="px-3 py-1.5 bg-slate-700 border border-slate-600 rounded text-sm text-white focus:outline-none focus:border-cyan-400 w-28">
+                <button onclick="handleLogin()" class="px-4 py-1.5 bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold rounded text-sm transition">로그인/가입</button>
             </div>
-            <!-- 로그인 후 -->
-            <div id="logged-in-view" class="hidden flex items-center gap-4">
-                <span id="user-display" class="text-sm font-medium text-slate-300"></span>
-                <button onclick="logout()" class="px-3 py-1.5 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded text-sm transition">로그아웃</button>
+            <div id="logged-in" class="hidden flex items-center gap-4">
+                <span id="user-welcome" class="text-sm font-medium text-slate-300"></span>
+                <button onclick="handleLogout()" class="px-3 py-1.5 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded text-sm transition">로그아웃</button>
             </div>
         </div>
     </header>
 
-    <!-- 메인 콘텐츠 영역 -->
+    <!-- 메인 레이아웃 -->
     <main class="flex-1 max-w-5xl w-full mx-auto p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-        <!-- 좌측: 업로드 폼 -->
+        <!-- 업로드 폼 -->
         <section class="bg-slate-800 p-5 rounded-xl border border-slate-700 h-fit">
             <h2 class="text-lg font-semibold mb-4 text-cyan-300">작품 업로드</h2>
-            <div id="upload-form" class="space-y-4">
+            <div class="space-y-4">
                 <div>
-                    <label class="block text-xs text-slate-400 mb-1">작품 제목</label>
-                    <input type="text" id="post-title" placeholder="예: 로블록스 검 모델링" class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-sm focus:outline-none focus:border-cyan-400">
+                    <label class="block text-xs text-slate-400 mb-1">제목</label>
+                    <input type="text" id="post-title" placeholder="예: 로블록스 무기 모델링" class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-sm text-white focus:outline-none focus:border-cyan-400">
                 </div>
                 <div>
-                    <label class="block text-xs text-slate-400 mb-1">작품 설명</label>
-                    <textarea id="post-desc" rows="3" placeholder="블렌더로 제작한 로블록스용 검입니다." class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-sm focus:outline-none focus:border-cyan-400 resize-none"></textarea>
+                    <label class="block text-xs text-slate-400 mb-1">설명</label>
+                    <textarea id="post-desc" rows="3" placeholder="블렌더로 제작한 작품입니다." class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-sm text-white focus:outline-none focus:border-cyan-400 resize-none"></textarea>
                 </div>
                 <div>
-                    <label class="block text-xs text-slate-400 mb-1">사진 첨부</label>
-                    <input type="file" id="post-image" accept="image/*" class="w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-cyan-500/20 file:text-cyan-300 hover:file:bg-cyan-500/35 cursor-pointer">
+                    <label class="block text-xs text-slate-400 mb-1">사진 파일</label>
+                    <input type="file" id="post-img" accept="image/*" class="w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-cyan-500/20 file:text-cyan-300 hover:file:bg-cyan-500/35 cursor-pointer">
                 </div>
-                <button onclick="createPost()" class="w-full py-2.5 bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold rounded text-sm transition">업로드하기</button>
+                <button onclick="createPost()" class="w-full py-2.5 bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold rounded text-sm transition">공유하기</button>
             </div>
         </section>
 
-        <!-- 우측: 작품 피드 -->
+        <!-- 피드 목록 -->
         <section class="md:col-span-2 space-y-4">
-            <h2 class="text-lg font-semibold text-cyan-300">동아리원 작품 피드</h2>
-            <div id="posts-container" class="space-y-4">
-                <!-- 게시글들이 동적으로 추가되는 영역 -->
+            <h2 class="text-lg font-semibold text-cyan-300">동아리원 피드</h2>
+            <div id="feed-container" class="space-y-4">
+                <!-- 게시글 동적 생성 -->
             </div>
         </section>
     </main>
 
-    <!-- 자바스크립트 스크립트 -->
+    <!-- 자바스크립트 -->
     <script>
-        let currentUser = localStorage.getItem('currentUser') || null;
-        let posts = JSON.parse(localStorage.getItem('clubPosts')) || [];
+        let currentUser = localStorage.getItem('club_username') || '';
 
-        function init() {
+        async function init() {
             if (currentUser) {
-                document.getElementById('logged-out-view').classList.add('hidden');
-                document.getElementById('logged-in-view').classList.remove('hidden');
-                document.getElementById('user-display').innerText = `${currentUser}님 환영합니다`;
+                document.getElementById('logged-out').classList.add('hidden');
+                document.getElementById('logged-in').classList.remove('hidden');
+                document.getElementById('user-welcome').innerText = `${currentUser}님 환영합니다!`;
             } else {
-                document.getElementById('logged-out-view').classList.remove('hidden');
-                document.getElementById('logged-in-view').classList.add('hidden');
+                document.getElementById('logged-out').classList.remove('hidden');
+                document.getElementById('logged-in').classList.add('hidden');
             }
-            renderPosts();
+            await fetchPosts();
         }
 
-        function login() {
-            const input = document.getElementById('username-input');
-            const name = input.value.trim();
-            if (!name) return alert('이름을 입력하세요.');
-            currentUser = name;
-            localStorage.setItem('currentUser', currentUser);
-            input.value = '';
-            init();
-        }
+        async function handleLogin() {
+            const name = document.getElementById('username').value.trim();
+            const pw = document.getElementById('password').value.trim();
+            if (!name || !pw) return alert('이름과 비밀번호를 모두 입력해주세요.');
 
-        function logout() {
-            currentUser = null;
-            localStorage.removeItem('currentUser');
-            init();
-        }
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: name, password: pw })
+            });
+            const data = await res.json();
 
-        function createPost() {
-            if (!currentUser) return alert('로그인 후 업로드할 수 있습니다.');
-            const title = document.getElementById('post-title').value.trim();
-            const desc = document.getElementById('post-desc').value.trim();
-            const imageInput = document.getElementById('post-image');
-
-            if (!title) return alert('제목을 입력하세요.');
-
-            if (imageInput.files && imageInput.files[0]) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    savePostData(title, desc, e.target.result);
-                };
-                reader.readAsDataURL(imageInput.files[0]);
+            if (data.success) {
+                currentUser = data.username;
+                localStorage.setItem('club_username', currentUser);
+                document.getElementById('username').value = '';
+                document.getElementById('password').value = '';
+                init();
             } else {
-                savePostData(title, desc, null);
+                alert(data.message);
             }
         }
 
-        function savePostData(title, desc, imageUrl) {
-            const newPost = {
-                id: Date.now(),
-                author: currentUser,
-                title: title,
-                desc: desc,
-                image: imageUrl,
-                date: new Date().toLocaleDateString()
-            };
-            posts.unshift(newPost);
-            localStorage.setItem('clubPosts', JSON.stringify(posts));
-            
-            document.getElementById('post-title').value = '';
-            document.getElementById('post-desc').value = '';
-            document.getElementById('post-image').value = '';
-            renderPosts();
+        function handleLogout() {
+            currentUser = '';
+            localStorage.removeItem('club_username');
+            init();
         }
 
-        function renderPosts() {
-            const container = document.getElementById('posts-container');
-            if (posts.length === 0) {
-                container.innerHTML = `<div class="bg-slate-800 p-8 rounded-xl border border-slate-700 text-center text-slate-400 text-sm">등록된 작품이 없습니다. 첫 작품을 공유해 보세요!</div>`;
+        async function createPost() {
+            if (!currentUser) {
+                alert('로그인을 먼저 해주세요!');
+                document.getElementById('username').focus();
                 return;
             }
+            const title = document.getElementById('post-title').value.trim();
+            const desc = document.getElementById('post-desc').value.trim();
+            const imgInput = document.getElementById('post-img');
 
-            container.innerHTML = posts.map(post => `
-                <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 space-y-3">
-                    <div class="flex justify-between items-center text-xs text-slate-400">
-                        <span class="font-semibold text-cyan-400">${post.author}</span>
-                        <span>${post.date}</span>
-                    </div>
-                    <h3 class="text-base font-bold text-slate-100">${escapeHtml(post.title)}</h3>
-                    ${post.desc ? `<p class="text-sm text-slate-300 whitespace-pre-wrap">${escapeHtml(post.desc)}</p>` : ''}
-                    ${post.image ? `<div class="rounded-lg overflow-hidden border border-slate-700 bg-slate-900 max-h-80 flex justify-center"><img src="${post.image}" class="object-contain max-h-80"></div>` : ''}
-                </div>
-            `).join('');
+            if (!title) return alert('제목을 입력해주세요.');
+
+            const formData = new FormData();
+            formData.append('author', currentUser);
+            formData.append('title', title);
+            formData.append('desc', desc);
+            if (imgInput.files && imgInput.files[0]) {
+                formData.append('image', imgInput.files[0]);
+            }
+
+            const res = await fetch('/api/posts', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await res.json();
+
+            if (data.success) {
+                document.getElementById('post-title').value = '';
+                document.getElementById('post-desc').value = '';
+                document.getElementById('post-img').value = '';
+                fetchPosts();
+            } else {
+                alert(data.message);
+            }
         }
 
-        function escapeHtml(str) {
+        async function deletePost(postId) {
+            if (!currentUser) return alert('로그인이 필요합니다.');
+            const res = await fetch(`/api/posts/${postId}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: currentUser })
+            });
+            const data = await res.json();
+            if (data.success) {
+                fetchPosts();
+            } else {
+                alert(data.message);
+            }
+        }
+
+        async function addComment(postId) {
+            if (!currentUser) return alert('댓글을 작성하려면 로그인을 해주세요.');
+            const input = document.getElementById(`comment-input-${postId}`);
+            const text = input.value.trim();
+            if (!text) return;
+
+            const res = await fetch(`/api/posts/${postId}/comments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ author: currentUser, text })
+            });
+            const data = await res.json();
+            if (data.success) {
+                input.value = '';
+                fetchPosts();
+            } else {
+                alert(data.message);
+            }
+        }
+
+        async function fetchPosts() {
+            try {
+                const res = await fetch('/api/posts');
+                const posts = await res.json();
+                const container = document.getElementById('feed-container');
+
+                if (posts.length === 0) {
+                    container.innerHTML = `<div class="bg-slate-800 p-8 rounded-xl border border-slate-700 text-center text-slate-400 text-sm">등록된 작품이 없습니다.</div>`;
+                    return;
+                }
+
+                container.innerHTML = posts.map(p => `
+                    <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 space-y-3">
+                        <div class="flex justify-between items-center text-xs text-slate-400">
+                            <span class="font-semibold text-cyan-400">${escapeStr(p.author)}</span>
+                            <div class="flex items-center gap-3">
+                                <span>${p.date}</span>
+                                ${(currentUser === p.author || currentUser === '이윤호') ? `<button onclick="deletePost(${p.id})" class="text-red-400 hover:text-red-300 font-bold">삭제</button>` : ''}
+                            </div>
+                        </div>
+                        <h3 class="text-base font-bold text-slate-100">${escapeStr(p.title)}</h3>
+                        ${p.desc ? `<p class="text-sm text-slate-300 whitespace-pre-wrap">${escapeStr(p.desc)}</p>` : ''}
+                        ${p.image ? `<div class="rounded-lg overflow-hidden border border-slate-700 bg-slate-900 max-h-80 flex justify-center"><img src="${p.image}" class="object-contain max-h-80"></div>` : ''}
+                        
+                        <!-- 댓글 영역 -->
+                        <div class="border-t border-slate-700 pt-3 mt-3 space-y-2">
+                            <div class="text-xs font-semibold text-cyan-300">댓글 (${p.comments ? p.comments.length : 0})</div>
+                            <div class="space-y-1.5 max-h-32 overflow-y-auto">
+                                ${p.comments && p.comments.length > 0 ? p.comments.map(c => `
+                                    <div class="bg-slate-900 p-2 rounded text-xs flex justify-between items-center">
+                                        <div><span class="font-semibold text-cyan-400">${escapeStr(c.author)}:</span> <span class="text-slate-200">${escapeStr(c.text)}</span></div>
+                                        <span class="text-[10px] text-slate-500">${c.date}</span>
+                                    </div>
+                                `).join('') : '<div class="text-xs text-slate-500">아직 댓글이 없습니다.</div>'}
+                            </div>
+                            <div class="flex gap-2 mt-2">
+                                <input type="text" id="comment-input-${p.id}" placeholder="댓글을 입력하세요..." class="flex-1 px-3 py-1 bg-slate-700 border border-slate-600 rounded text-xs text-white focus:outline-none focus:border-cyan-400">
+                                <button onclick="addComment(${p.id})" class="px-3 py-1 bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold rounded text-xs transition">등록</button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function escapeStr(str) {
+            if (!str) return '';
             return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
         }
 
