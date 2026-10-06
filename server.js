@@ -19,13 +19,23 @@ const usersFile = path.join(__dirname, 'users.json');
 
 function loadData(file) {
     if (fs.existsSync(file)) {
-        try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch (e) { return []; }
+        try { 
+            const data = fs.readFileSync(file, 'utf8');
+            return data ? JSON.parse(data) : []; 
+        } catch (e) { 
+            console.error(`Error reading ${file}:`, e);
+            return []; 
+        }
     }
     return [];
 }
 
 function saveData(file, data) {
-    fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
+    try {
+        fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
+    } catch (e) {
+        console.error(`Error saving ${file}:`, e);
+    }
 }
 
 app.use(express.json());
@@ -86,7 +96,8 @@ app.get('/api/posts', (req, res) => {
     res.json(loadData(dataFile));
 });
 
-app.post('/api/posts', upload.single('image'), (req, res) => {
+/* [수정] 이미지 및 3D 모델 파일 동시 업로드 지원 */
+app.post('/api/posts', upload.fields([{ name: 'image', maxCount: 1 }, { name: 'model', maxCount: 1 }]), (req, res) => {
     const { author, title, desc } = req.body;
     if (!author || !title) return res.json({ success: false, message: '필수 항목이 누락되었습니다.' });
 
@@ -96,9 +107,10 @@ app.post('/api/posts', upload.single('image'), (req, res) => {
         author,
         title,
         desc: desc || '',
-        image: req.file ? `/uploads/${req.file.filename}` : null,
+        image: req.files && req.files['image'] ? `/uploads/${req.files['image'][0].filename}` : null,
+        model: req.files && req.files['model'] ? `/uploads/${req.files['model'][0].filename}` : null, // [추가] 3D 모델 경로
         date: new Date().toLocaleDateString(),
-        likes: [],       // [추가] 작품 좋아요 누른 유저 목록
+        likes: [],
         comments: []
     };
 
@@ -124,7 +136,6 @@ app.delete('/api/posts/:id', (req, res) => {
     res.json({ success: true });
 });
 
-/* [추가] 작품 좋아요 토글 API */
 app.post('/api/posts/:id/like', (req, res) => {
     const postId = Number(req.params.id);
     const { username } = req.body;
@@ -137,9 +148,9 @@ app.post('/api/posts/:id/like', (req, res) => {
     if (!post.likes) post.likes = [];
     const index = post.likes.indexOf(username);
     if (index > -1) {
-        post.likes.splice(index, 1); // 이미 눌렀다면 취소
+        post.likes.splice(index, 1);
     } else {
-        post.likes.push(username); // 안 눌렀다면 추가
+        post.likes.push(username);
     }
 
     saveData(dataFile, posts);
@@ -165,9 +176,9 @@ app.post('/api/posts/:id/comments', (req, res) => {
     post.comments.push({
         id: Date.now(),
         author,
-        avatar,      // [추가] 댓글 작성 당시의 프로필 사진 저장
+        avatar,
         text,
-        likes: [],   // [추가] 댓글 좋아요 누른 유저 목록
+        likes: [],
         date: new Date().toLocaleDateString()
     });
 
@@ -196,7 +207,6 @@ app.delete('/api/posts/:postId/comments/:commentId', (req, res) => {
     res.json({ success: true });
 });
 
-/* [추가] 댓글 좋아요 토글 API */
 app.post('/api/posts/:postId/comments/:commentId/like', (req, res) => {
     const postId = Number(req.params.postId);
     const commentId = Number(req.params.commentId);
