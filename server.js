@@ -98,6 +98,7 @@ app.post('/api/posts', upload.single('image'), (req, res) => {
         desc: desc || '',
         image: req.file ? `/uploads/${req.file.filename}` : null,
         date: new Date().toLocaleDateString(),
+        likes: [],       // [추가] 작품 좋아요 누른 유저 목록
         comments: []
     };
 
@@ -123,11 +124,38 @@ app.delete('/api/posts/:id', (req, res) => {
     res.json({ success: true });
 });
 
+/* [추가] 작품 좋아요 토글 API */
+app.post('/api/posts/:id/like', (req, res) => {
+    const postId = Number(req.params.id);
+    const { username } = req.body;
+    if (!username) return res.json({ success: false, message: '로그인이 필요합니다.' });
+
+    let posts = loadData(dataFile);
+    const post = posts.find(p => p.id === postId);
+    if (!post) return res.json({ success: false, message: '게시글이 없습니다.' });
+
+    if (!post.likes) post.likes = [];
+    const index = post.likes.indexOf(username);
+    if (index > -1) {
+        post.likes.splice(index, 1); // 이미 눌렀다면 취소
+    } else {
+        post.likes.push(username); // 안 눌렀다면 추가
+    }
+
+    saveData(dataFile, posts);
+    io.emit('update_posts', posts);
+    res.json({ success: true });
+});
+
 app.post('/api/posts/:id/comments', (req, res) => {
     const postId = Number(req.params.id);
     const { author, text } = req.body;
 
     if (!author || !text) return res.json({ success: false, message: '내용을 입력해주세요.' });
+
+    let users = loadData(usersFile);
+    let user = users.find(u => u.username === author);
+    let avatar = user ? user.avatar : 'https://via.placeholder.com/150';
 
     let posts = loadData(dataFile);
     const post = posts.find(p => p.id === postId);
@@ -137,7 +165,9 @@ app.post('/api/posts/:id/comments', (req, res) => {
     post.comments.push({
         id: Date.now(),
         author,
+        avatar,      // [추가] 댓글 작성 당시의 프로필 사진 저장
         text,
+        likes: [],   // [추가] 댓글 좋아요 누른 유저 목록
         date: new Date().toLocaleDateString()
     });
 
@@ -161,6 +191,33 @@ app.delete('/api/posts/:postId/comments/:commentId', (req, res) => {
     if (username !== comment.author && username !== '이윤호') return res.json({ success: false });
 
     post.comments = post.comments.filter(c => c.id !== commentId);
+    saveData(dataFile, posts);
+    io.emit('update_posts', posts);
+    res.json({ success: true });
+});
+
+/* [추가] 댓글 좋아요 토글 API */
+app.post('/api/posts/:postId/comments/:commentId/like', (req, res) => {
+    const postId = Number(req.params.postId);
+    const commentId = Number(req.params.commentId);
+    const { username } = req.body;
+    if (!username) return res.json({ success: false });
+
+    let posts = loadData(dataFile);
+    const post = posts.find(p => p.id === postId);
+    if (!post) return res.json({ success: false });
+
+    const comment = post.comments.find(c => c.id === commentId);
+    if (!comment) return res.json({ success: false });
+
+    if (!comment.likes) comment.likes = [];
+    const index = comment.likes.indexOf(username);
+    if (index > -1) {
+        comment.likes.splice(index, 1);
+    } else {
+        comment.likes.push(username);
+    }
+
     saveData(dataFile, posts);
     io.emit('update_posts', posts);
     res.json({ success: true });
