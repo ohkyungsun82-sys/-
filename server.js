@@ -96,6 +96,7 @@ app.get('/api/posts', (req, res) => {
     res.json(loadData(dataFile));
 });
 
+/* 게시글 작성 (최신 데이터 로드 후 병합 저장) */
 app.post('/api/posts', upload.fields([{ name: 'image', maxCount: 1 }, { name: 'model', maxCount: 1 }]), (req, res) => {
     const { author, title, desc } = req.body;
     if (!author || !title) return res.json({ success: false, message: '필수 항목이 누락되었습니다.' });
@@ -135,6 +136,7 @@ app.delete('/api/posts/:id', (req, res) => {
     res.json({ success: true });
 });
 
+/* 작품 좋아요 토글 (안전한 배열 조작) */
 app.post('/api/posts/:id/like', (req, res) => {
     const postId = Number(req.params.id);
     const { username } = req.body;
@@ -144,12 +146,13 @@ app.post('/api/posts/:id/like', (req, res) => {
     const post = posts.find(p => p.id === postId);
     if (!post) return res.json({ success: false, message: '게시글이 없습니다.' });
 
-    if (!post.likes) post.likes = [];
+    if (!Array.isArray(post.likes)) post.likes = [];
+    
     const index = post.likes.indexOf(username);
     if (index > -1) {
-        post.likes.splice(index, 1);
+        post.likes.splice(index, 1); // 취소
     } else {
-        post.likes.push(username);
+        post.likes.push(username); // 추가
     }
 
     saveData(dataFile, posts);
@@ -171,7 +174,7 @@ app.post('/api/posts/:id/comments', (req, res) => {
     const post = posts.find(p => p.id === postId);
     if (!post) return res.json({ success: false, message: '게시글이 없습니다.' });
 
-    if (!post.comments) post.comments = [];
+    if (!Array.isArray(post.comments)) post.comments = [];
     post.comments.push({
         id: Date.now(),
         author,
@@ -206,6 +209,60 @@ app.delete('/api/posts/:postId/comments/:commentId', (req, res) => {
     res.json({ success: true });
 });
 
+/* 댓글 좋아요 토글 (안전한 배열 조작) */
 app.post('/api/posts/:postId/comments/:commentId/like', (req, res) => {
     const postId = Number(req.params.postId);
-    const commentId =
+    const commentId = Number(req.params.commentId);
+    const { username } = req.body;
+    if (!username) return res.json({ success: false });
+
+    let posts = loadData(dataFile);
+    const post = posts.find(p => p.id === postId);
+    if (!post) return res.json({ success: false });
+
+    const comment = post.comments.find(c => c.id === commentId);
+    if (!comment) return res.json({ success: false });
+
+    if (!Array.isArray(comment.likes)) comment.likes = [];
+    
+    const index = comment.likes.indexOf(username);
+    if (index > -1) {
+        comment.likes.splice(index, 1);
+    } else {
+        comment.likes.push(username);
+    }
+
+    saveData(dataFile, posts);
+    io.emit('update_posts', posts);
+    res.json({ success: true });
+});
+
+app.delete('/api/users/:username', (req, res) => {
+    const targetUsername = decodeURIComponent(req.params.username);
+    const { admin } = req.body;
+
+    if (admin !== '이윤호') return res.json({ success: false });
+
+    let users = loadData(usersFile);
+    users = users.filter(u => u.username !== targetUsername);
+    saveData(usersFile, users);
+    io.emit('update_users', users);
+
+    let posts = loadData(dataFile);
+    posts = posts.filter(p => p.author !== targetUsername);
+    posts.forEach(p => {
+        if (p.comments) {
+            p.comments = p.comments.filter(c => c.author !== targetUsername);
+        }
+    });
+    saveData(dataFile, posts);
+    io.emit('update_posts', posts);
+
+    io.emit('force_logout', targetUsername);
+
+    res.json({ success: true });
+});
+
+server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
