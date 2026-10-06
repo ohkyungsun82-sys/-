@@ -96,7 +96,6 @@ app.get('/api/posts', (req, res) => {
     res.json(loadData(dataFile));
 });
 
-/* [수정] 이미지 및 3D 모델 파일 동시 업로드 지원 */
 app.post('/api/posts', upload.fields([{ name: 'image', maxCount: 1 }, { name: 'model', maxCount: 1 }]), (req, res) => {
     const { author, title, desc } = req.body;
     if (!author || !title) return res.json({ success: false, message: '필수 항목이 누락되었습니다.' });
@@ -108,7 +107,7 @@ app.post('/api/posts', upload.fields([{ name: 'image', maxCount: 1 }, { name: 'm
         title,
         desc: desc || '',
         image: req.files && req.files['image'] ? `/uploads/${req.files['image'][0].filename}` : null,
-        model: req.files && req.files['model'] ? `/uploads/${req.files['model'][0].filename}` : null, // [추가] 3D 모델 경로
+        model: req.files && req.files['model'] ? `/uploads/${req.files['model'][0].filename}` : null,
         date: new Date().toLocaleDateString(),
         likes: [],
         comments: []
@@ -209,56 +208,4 @@ app.delete('/api/posts/:postId/comments/:commentId', (req, res) => {
 
 app.post('/api/posts/:postId/comments/:commentId/like', (req, res) => {
     const postId = Number(req.params.postId);
-    const commentId = Number(req.params.commentId);
-    const { username } = req.body;
-    if (!username) return res.json({ success: false });
-
-    let posts = loadData(dataFile);
-    const post = posts.find(p => p.id === postId);
-    if (!post) return res.json({ success: false });
-
-    const comment = post.comments.find(c => c.id === commentId);
-    if (!comment) return res.json({ success: false });
-
-    if (!comment.likes) comment.likes = [];
-    const index = comment.likes.indexOf(username);
-    if (index > -1) {
-        comment.likes.splice(index, 1);
-    } else {
-        comment.likes.push(username);
-    }
-
-    saveData(dataFile, posts);
-    io.emit('update_posts', posts);
-    res.json({ success: true });
-});
-
-app.delete('/api/users/:username', (req, res) => {
-    const targetUsername = decodeURIComponent(req.params.username);
-    const { admin } = req.body;
-
-    if (admin !== '이윤호') return res.json({ success: false });
-
-    let users = loadData(usersFile);
-    users = users.filter(u => u.username !== targetUsername);
-    saveData(usersFile, users);
-    io.emit('update_users', users);
-
-    let posts = loadData(dataFile);
-    posts = posts.filter(p => p.author !== targetUsername);
-    posts.forEach(p => {
-        if (p.comments) {
-            p.comments = p.comments.filter(c => c.author !== targetUsername);
-        }
-    });
-    saveData(dataFile, posts);
-    io.emit('update_posts', posts);
-
-    io.emit('force_logout', targetUsername);
-
-    res.json({ success: true });
-});
-
-server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+    const commentId =
