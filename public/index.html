@@ -6,9 +6,12 @@
     <title>동아리 작품 공유 플랫폼</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/socket.io/socket.io.js"></script>
-    <!-- [추가] Three.js 및 3D 모델 로더 (GLTFLoader, OrbitControls) -->
+    <!-- Three.js 및 모든 주요 3D 포맷 로더 (GLTF, OBJ, FBX, STL) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/STLLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
@@ -48,8 +51,8 @@
                     <input type="file" id="post-img" accept="image/*" class="w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-cyan-500/20 file:text-cyan-300 hover:file:bg-cyan-500/35 cursor-pointer">
                 </div>
                 <div>
-                    <label class="block text-xs text-slate-400 mb-1">3D 모델 파일 (.glb / .gltf)</label>
-                    <input type="file" id="post-model" accept=".glb,.gltf" class="w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-indigo-500/20 file:text-indigo-300 hover:file:bg-indigo-500/35 cursor-pointer">
+                    <label class="block text-xs text-slate-400 mb-1">3D 모델 파일 (모든 포맷 지원: glb, gltf, obj, fbx, stl)</label>
+                    <input type="file" id="post-model" accept=".glb,.gltf,.obj,.fbx,.stl" class="w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-indigo-500/20 file:text-indigo-300 hover:file:bg-indigo-500/35 cursor-pointer">
                 </div>
                 <button onclick="createPost()" class="w-full py-2.5 bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold rounded text-sm transition">공유하기</button>
             </div>
@@ -316,50 +319,106 @@
             fetchInitialData();
         }
 
-        // [추가] Three.js를 이용해 3D 모델(.glb/.gltf)을 화면에 렌더링하고 마우스로 돌려보게 만드는 함수
+        // [확장된 3D 뷰어 함수] 파일 확장자에 따라 GLTF, OBJ, FBX, STL 자동 판별하여 렌더링
         function init3DViewer(containerId, modelUrl) {
             const container = document.getElementById(containerId);
             if (!container) return;
+            container.innerHTML = '';
+
+            const width = container.clientWidth || 400;
+            const height = container.clientHeight || 256;
 
             const scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x0f172a); // 배경색 맞춤 (slate-900)
+            scene.background = new THREE.Color(0x1e293b);
 
-            const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+            const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000);
             camera.position.set(0, 2, 5);
 
             const renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(window.devicePixelRatio);
             container.appendChild(renderer.domElement);
 
             const controls = new THREE.OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
 
             // 조명 추가
-            const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+            const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
             scene.add(ambientLight);
 
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
-            directionalLight.position.set(5, 10, 7);
-            scene.add(directionalLight);
+            const dirLight1 = new THREE.DirectionalLight(0xffffff, 2.0);
+            dirLight1.position.set(10, 20, 15);
+            scene.add(dirLight1);
 
-            // 모델 로드
-            const loader = new THREE.GLTFLoader();
-            loader.load(modelUrl, (gltf) => {
-                const model = gltf.scene;
-                
-                // 모델 크기 자동 조절 및 중앙 정렬
-                const box = new THREE.Box3().setFromObject(model);
+            const dirLight2 = new THREE.DirectionalLight(0xffffff, 1.0);
+            dirLight2.position.set(-10, -20, -15);
+            scene.add(dirLight2);
+
+            const ext = modelUrl.split('.').pop().toLowerCase();
+
+            function handleLoadedObject(object) {
+                const box = new THREE.Box3().setFromObject(object);
                 const center = box.getCenter(new THREE.Vector3());
                 const size = box.getSize(new THREE.Vector3());
-                const maxDim = Math.max(size.x, size.y, size.z);
-                const scale = 2 / maxDim;
-                model.scale.set(scale, scale, scale);
-                model.position.sub(center.multiplyScalar(scale));
 
-                scene.add(model);
-            }, undefined, (error) => {
-                console.error('3D 모델 로드 실패:', error);
-            });
+                object.position.sub(center);
+
+                const maxDim = Math.max(size.x, size.y, size.z);
+                if (maxDim > 0) {
+                    const scale = 2.5 / maxDim;
+                    object.scale.set(scale, scale, scale);
+                }
+
+                scene.add(object);
+                camera.position.set(0, maxDim * 0.5, maxDim * 2.5);
+                controls.target.set(0, 0, 0);
+                controls.update();
+            }
+
+            if (ext === 'glb' || ext === 'gltf') {
+                const loader = new THREE.GLTFLoader();
+                loader.load(modelUrl, (gltf) => {
+                    handleLoadedObject(gltf.scene);
+                }, undefined, (error) => {
+                    console.error('GLTF 로드 오류:', error);
+                    container.innerHTML = `<div class="flex items-center justify-center h-full text-xs text-red-400">GLTF 모델 로드 실패</div>`;
+                });
+            } else if (ext === 'obj') {
+                const loader = new THREE.OBJLoader();
+                loader.load(modelUrl, (object) => {
+                    // 기본 재질이 없는 경우를 대비해 기본 머티리얼 적용
+                    object.traverse((child) => {
+                        if (child.isMesh) {
+                            child.material = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.4 });
+                        }
+                    });
+                    handleLoadedObject(object);
+                }, undefined, (error) => {
+                    console.error('OBJ 로드 오류:', error);
+                    container.innerHTML = `<div class="flex items-center justify-center h-full text-xs text-red-400">OBJ 모델 로드 실패</div>`;
+                });
+            } else if (ext === 'fbx') {
+                const loader = new THREE.FBXLoader();
+                loader.load(modelUrl, (object) => {
+                    handleLoadedObject(object);
+                }, undefined, (error) => {
+                    console.error('FBX 로드 오류:', error);
+                    container.innerHTML = `<div class="flex items-center justify-center h-full text-xs text-red-400">FBX 모델 로드 실패</div>`;
+                });
+            } else if (ext === 'stl') {
+                const loader = new THREE.STLLoader();
+                loader.load(modelUrl, (geometry) => {
+                    const material = new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.4 });
+                    const mesh = new THREE.Mesh(geometry, material);
+                    handleLoadedObject(mesh);
+                }, undefined, (error) => {
+                    console.error('STL 로드 오류:', error);
+                    container.innerHTML = `<div class="flex items-center justify-center h-full text-xs text-red-400">STL 모델 로드 실패</div>`;
+                });
+            } else {
+                container.innerHTML = `<div class="flex items-center justify-center h-full text-xs text-yellow-400">지원하지 않는 3D 형식입니다.</div>`;
+            }
 
             function animate() {
                 requestAnimationFrame(animate);
@@ -398,7 +457,7 @@
                     <!-- 이미지 표시 -->
                     ${p.image ? `<div class="rounded-lg overflow-hidden border border-slate-700 bg-slate-900 max-h-80 flex justify-center"><img src="${p.image}" class="object-contain max-h-80"></div>` : ''}
                     
-                    <!-- [추가] 3D 모델 뷰어 영역 -->
+                    <!-- 3D 모델 뷰어 영역 -->
                     ${p.model ? `
                         <div class="space-y-1">
                             <div class="text-[11px] text-indigo-300 font-semibold">🧊 3D 모델 뷰어 (마우스로 돌려보세요)</div>
@@ -450,12 +509,13 @@
                 `;
             }).join('');
 
-            // 렌더링 완료 후 3D 모델이 있는 게시글마다 뷰어 초기화 실행
-            posts.forEach(p => {
-                if (p.model) {
-                    init3DViewer(`viewer-${p.id}`, p.model);
-                }
-            });
+            setTimeout(() => {
+                posts.forEach(p => {
+                    if (p.model) {
+                        init3DViewer(`viewer-${p.id}`, p.model);
+                    }
+                });
+            }, 50);
         }
 
         function renderUserList(users) {
