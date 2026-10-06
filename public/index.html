@@ -1,355 +1,254 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>동아리 작품 공유 플랫폼</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="/socket.io/socket.io.js"></script>
-</head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
-    <!-- 상단 네비게이션 -->
-    <header class="bg-slate-800 border-b border-slate-700 px-6 py-4 flex justify-between items-center">
-        <h1 class="text-xl font-bold text-cyan-400">🎮 동아리 작품 공유소</h1>
-        <div class="flex items-center gap-4">
-            <div id="logged-out" class="flex gap-2">
-                <button onclick="openLoginModal()" class="px-4 py-1.5 bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold rounded text-sm transition">로그인 / 회원가입</button>
-            </div>
-            <div id="logged-in" class="hidden flex items-center gap-4">
-                <div id="user-profile-badge" class="flex items-center gap-2 cursor-pointer" onclick="openProfileModal()" title="프로필 수정">
-                    <img id="user-avatar" src="" class="w-8 h-8 rounded-full object-cover border border-cyan-400">
-                    <span id="user-welcome" class="text-sm font-medium text-slate-300"></span>
-                </div>
-                <button onclick="handleLogout()" class="px-3 py-1.5 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded text-sm transition">로그아웃</button>
-            </div>
-        </div>
-    </header>
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
-    <!-- 메인 레이아웃 -->
-    <main class="flex-1 max-w-7xl w-full mx-auto p-6 grid grid-cols-1 md:grid-cols-4 gap-6">
-        <!-- 업로드 폼 -->
-        <section class="bg-slate-800 p-5 rounded-xl border border-slate-700 h-fit">
-            <h2 class="text-lg font-semibold mb-4 text-cyan-300">작품 업로드</h2>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-xs text-slate-400 mb-1">제목</label>
-                    <input type="text" id="post-title" placeholder="예: 로블록스 무기 모델링" class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-sm text-white focus:outline-none focus:border-cyan-400">
-                </div>
-                <div>
-                    <label class="block text-xs text-slate-400 mb-1">설명</label>
-                    <textarea id="post-desc" rows="3" placeholder="블렌더로 제작한 작품입니다." class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-sm text-white focus:outline-none focus:border-cyan-400 resize-none"></textarea>
-                </div>
-                <div>
-                    <label class="block text-xs text-slate-400 mb-1">사진 파일</label>
-                    <input type="file" id="post-img" accept="image/*" class="w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-cyan-500/20 file:text-cyan-300 hover:file:bg-cyan-500/35 cursor-pointer">
-                </div>
-                <button onclick="createPost()" class="w-full py-2.5 bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold rounded text-sm transition">공유하기</button>
-            </div>
-        </section>
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
 
-        <!-- 피드 목록 -->
-        <section class="md:col-span-2 space-y-4">
-            <h2 class="text-lg font-semibold text-cyan-300">동아리원 피드</h2>
-            <div id="feed-container" class="space-y-4">
-                <!-- 게시글 동적 생성 -->
-            </div>
-        </section>
+const PORT = process.env.PORT || 3000;
 
-        <!-- 우측 사이드바: 닉네임 관리 -->
-        <aside class="bg-slate-800 p-5 rounded-xl border border-slate-700 h-fit space-y-4">
-            <h2 class="text-lg font-semibold text-cyan-300">동아리원 목록</h2>
-            <div id="user-list-container" class="space-y-2 max-h-[500px] overflow-y-auto">
-                <!-- 닉네임 목록 -->
-            </div>
-        </aside>
-    </main>
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
 
-    <!-- 로그인/회원가입 모달 -->
-    <div id="login-modal" class="fixed inset-0 bg-black/70 flex justify-center items-center hidden z-50">
-        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 w-96 space-y-4 relative">
-            <h2 class="text-xl font-bold text-cyan-400 text-center">로그인 및 회원가입</h2>
-            <div class="space-y-3">
-                <div>
-                    <label class="block text-xs text-slate-400 mb-1">닉네임</label>
-                    <input type="text" id="modal-username" placeholder="사용할 닉네임" class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-sm text-white focus:outline-none focus:border-cyan-400">
-                </div>
-                <div>
-                    <label class="block text-xs text-slate-400 mb-1">비밀번호</label>
-                    <input type="password" id="modal-password" placeholder="비밀번호" class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-sm text-white focus:outline-none focus:border-cyan-400">
-                </div>
-                <button onclick="handleLogin()" class="w-full py-2.5 bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold rounded text-sm transition">확인</button>
-            </div>
-            <button onclick="closeLoginModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-sm">✕</button>
-        </div>
-    </div>
+const dataFile = path.join(__dirname, 'posts.json');
+const usersFile = path.join(__dirname, 'users.json');
 
-    <!-- 프로필 수정 모달 -->
-    <div id="profile-modal" class="fixed inset-0 bg-black/70 flex justify-center items-center hidden z-50">
-        <div class="bg-slate-800 p-6 rounded-2xl border border-slate-700 w-96 space-y-4 relative">
-            <h2 class="text-xl font-bold text-cyan-400 text-center">프로필 설정</h2>
-            <div class="space-y-3">
-                <div>
-                    <label class="block text-xs text-slate-400 mb-1">프로필 이미지 선택</label>
-                    <input type="file" id="profile-img-input" accept="image/*" class="w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-cyan-500/20 file:text-cyan-300 hover:file:bg-cyan-500/35 cursor-pointer">
-                </div>
-                <button onclick="updateProfile()" class="w-full py-2.5 bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold rounded text-sm transition">프로필 변경</button>
-            </div>
-            <button onclick="closeProfileModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-sm">✕</button>
-        </div>
-    </div>
+function loadData(file) {
+    if (fs.existsSync(file)) {
+        try { return JSON.parse(fs.readFileSync(file, 'utf8')); } catch (e) { return []; }
+    }
+    return [];
+}
 
-    <!-- 자바스크립트 및 소켓 연동 -->
-    <script>
-        const socket = io();
-        let currentUser = JSON.parse(localStorage.getItem('club_user_obj')) || null;
+function saveData(file, data) {
+    fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
+}
 
-        window.onload = () => {
-            initAuthView();
-            fetchInitialData();
-        };
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static(uploadDir));
 
-        socket.on('update_posts', (posts) => {
-            renderFeed(posts);
-        });
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, uploadDir),
+    filename: (req, file, cb) => {
+        cb(null, Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname));
+    }
+});
+const upload = multer({ storage: storage });
 
-        socket.on('update_users', (users) => {
-            renderUserList(users);
-        });
+io.on('connection', (socket) => {
+    socket.emit('update_posts', loadData(dataFile));
+    socket.emit('update_users', loadData(usersFile));
+});
 
-        socket.on('force_logout', (deletedUsername) => {
-            if (currentUser && currentUser.username === deletedUsername) {
-                alert('관리자에 의해 계정이 삭제되었습니다. 게시글과 댓글이 모두 초기화됩니다.');
-                handleLogout();
-                window.location.reload();
-            }
-        });
+app.post('/api/login', (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) return res.json({ success: false, message: '닉네임과 비밀번호를 입력해주세요.' });
 
-        function initAuthView() {
-            if (currentUser) {
-                document.getElementById('logged-out').classList.add('hidden');
-                document.getElementById('logged-in').classList.remove('hidden');
-                document.getElementById('user-welcome').innerText = `${currentUser.username}님`;
-                document.getElementById('user-avatar').src = currentUser.avatar || 'https://via.placeholder.com/150';
-            } else {
-                document.getElementById('logged-out').classList.remove('hidden');
-                document.getElementById('logged-in').classList.add('hidden');
-            }
+    let users = loadData(usersFile);
+    let user = users.find(u => u.username === username);
+
+    if (user) {
+        if (user.password !== password) return res.json({ success: false, message: '이미 존재하는 닉네임이며 비밀번호가 틀렸습니다.' });
+    } else {
+        user = { username, password, avatar: 'https://via.placeholder.com/150' };
+        users.push(user);
+        saveData(usersFile, users);
+        io.emit('update_users', users);
+    }
+    res.json({ success: true, user });
+});
+
+app.post('/api/profile', upload.single('avatar'), (req, res) => {
+    const { username } = req.body;
+    if (!username || !req.file) return res.json({ success: false, message: '잘못된 요청입니다.' });
+
+    let users = loadData(usersFile);
+    let user = users.find(u => u.username === username);
+    if (!user) return res.json({ success: false, message: '유저를 찾을 수 없습니다.' });
+
+    user.avatar = `/uploads/${req.file.filename}`;
+    saveData(usersFile, users);
+    io.emit('update_users', users);
+    res.json({ success: true, avatar: user.avatar });
+});
+
+app.get('/api/users', (req, res) => {
+    res.json(loadData(usersFile));
+});
+
+app.get('/api/posts', (req, res) => {
+    res.json(loadData(dataFile));
+});
+
+app.post('/api/posts', upload.single('image'), (req, res) => {
+    const { author, title, desc } = req.body;
+    if (!author || !title) return res.json({ success: false, message: '필수 항목이 누락되었습니다.' });
+
+    const posts = loadData(dataFile);
+    const newPost = {
+        id: Date.now(),
+        author,
+        title,
+        desc: desc || '',
+        image: req.file ? `/uploads/${req.file.filename}` : null,
+        date: new Date().toLocaleDateString(),
+        likes: [],       // [추가] 작품 좋아요 누른 유저 목록
+        comments: []
+    };
+
+    posts.unshift(newPost);
+    saveData(dataFile, posts);
+    io.emit('update_posts', posts);
+    res.json({ success: true });
+});
+
+app.delete('/api/posts/:id', (req, res) => {
+    const postId = Number(req.params.id);
+    const { username } = req.body;
+
+    let posts = loadData(dataFile);
+    const post = posts.find(p => p.id === postId);
+    if (!post) return res.json({ success: false, message: '게시글이 없습니다.' });
+
+    if (username !== post.author && username !== '이윤호') return res.json({ success: false });
+
+    posts = posts.filter(p => p.id !== postId);
+    saveData(dataFile, posts);
+    io.emit('update_posts', posts);
+    res.json({ success: true });
+});
+
+/* [추가] 작품 좋아요 토글 API */
+app.post('/api/posts/:id/like', (req, res) => {
+    const postId = Number(req.params.id);
+    const { username } = req.body;
+    if (!username) return res.json({ success: false, message: '로그인이 필요합니다.' });
+
+    let posts = loadData(dataFile);
+    const post = posts.find(p => p.id === postId);
+    if (!post) return res.json({ success: false, message: '게시글이 없습니다.' });
+
+    if (!post.likes) post.likes = [];
+    const index = post.likes.indexOf(username);
+    if (index > -1) {
+        post.likes.splice(index, 1); // 이미 눌렀다면 취소
+    } else {
+        post.likes.push(username); // 안 눌렀다면 추가
+    }
+
+    saveData(dataFile, posts);
+    io.emit('update_posts', posts);
+    res.json({ success: true });
+});
+
+app.post('/api/posts/:id/comments', (req, res) => {
+    const postId = Number(req.params.id);
+    const { author, text } = req.body;
+
+    if (!author || !text) return res.json({ success: false, message: '내용을 입력해주세요.' });
+
+    let users = loadData(usersFile);
+    let user = users.find(u => u.username === author);
+    let avatar = user ? user.avatar : 'https://via.placeholder.com/150';
+
+    let posts = loadData(dataFile);
+    const post = posts.find(p => p.id === postId);
+    if (!post) return res.json({ success: false, message: '게시글이 없습니다.' });
+
+    if (!post.comments) post.comments = [];
+    post.comments.push({
+        id: Date.now(),
+        author,
+        avatar,      // [추가] 댓글 작성 당시의 프로필 사진 저장
+        text,
+        likes: [],   // [추가] 댓글 좋아요 누른 유저 목록
+        date: new Date().toLocaleDateString()
+    });
+
+    saveData(dataFile, posts);
+    io.emit('update_posts', posts);
+    res.json({ success: true });
+});
+
+app.delete('/api/posts/:postId/comments/:commentId', (req, res) => {
+    const postId = Number(req.params.postId);
+    const commentId = Number(req.params.commentId);
+    const { username } = req.body;
+
+    let posts = loadData(dataFile);
+    const post = posts.find(p => p.id === postId);
+    if (!post) return res.json({ success: false });
+
+    const comment = post.comments.find(c => c.id === commentId);
+    if (!comment) return res.json({ success: false });
+
+    if (username !== comment.author && username !== '이윤호') return res.json({ success: false });
+
+    post.comments = post.comments.filter(c => c.id !== commentId);
+    saveData(dataFile, posts);
+    io.emit('update_posts', posts);
+    res.json({ success: true });
+});
+
+/* [추가] 댓글 좋아요 토글 API */
+app.post('/api/posts/:postId/comments/:commentId/like', (req, res) => {
+    const postId = Number(req.params.postId);
+    const commentId = Number(req.params.commentId);
+    const { username } = req.body;
+    if (!username) return res.json({ success: false });
+
+    let posts = loadData(dataFile);
+    const post = posts.find(p => p.id === postId);
+    if (!post) return res.json({ success: false });
+
+    const comment = post.comments.find(c => c.id === commentId);
+    if (!comment) return res.json({ success: false });
+
+    if (!comment.likes) comment.likes = [];
+    const index = comment.likes.indexOf(username);
+    if (index > -1) {
+        comment.likes.splice(index, 1);
+    } else {
+        comment.likes.push(username);
+    }
+
+    saveData(dataFile, posts);
+    io.emit('update_posts', posts);
+    res.json({ success: true });
+});
+
+app.delete('/api/users/:username', (req, res) => {
+    const targetUsername = decodeURIComponent(req.params.username);
+    const { admin } = req.body;
+
+    if (admin !== '이윤호') return res.json({ success: false });
+
+    let users = loadData(usersFile);
+    users = users.filter(u => u.username !== targetUsername);
+    saveData(usersFile, users);
+    io.emit('update_users', users);
+
+    let posts = loadData(dataFile);
+    posts = posts.filter(p => p.author !== targetUsername);
+    posts.forEach(p => {
+        if (p.comments) {
+            p.comments = p.comments.filter(c => c.author !== targetUsername);
         }
+    });
+    saveData(dataFile, posts);
+    io.emit('update_posts', posts);
 
-        function openLoginModal() { document.getElementById('login-modal').classList.remove('hidden'); }
-        function closeLoginModal() { document.getElementById('login-modal').classList.add('hidden'); }
-        function openProfileModal() { document.getElementById('profile-modal').classList.remove('hidden'); }
-        function closeProfileModal() { document.getElementById('profile-modal').classList.add('hidden'); }
+    io.emit('force_logout', targetUsername);
 
-        async function handleLogin() {
-            const username = document.getElementById('modal-username').value.trim();
-            const password = document.getElementById('modal-password').value.trim();
-            if (!username || !password) return alert('닉네임과 비밀번호를 입력해주세요.');
+    res.json({ success: true });
+});
 
-            const res = await fetch('/api/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            });
-            const data = await res.json();
-
-            if (data.success) {
-                currentUser = data.user;
-                localStorage.setItem('club_user_obj', JSON.stringify(currentUser));
-                closeLoginModal();
-                initAuthView();
-                fetchInitialData();
-            } else {
-                alert(data.message);
-            }
-        }
-
-        function handleLogout() {
-            currentUser = null;
-            localStorage.removeItem('club_user_obj');
-            initAuthView();
-            fetchInitialData();
-        }
-
-        async function updateProfile() {
-            const fileInput = document.getElementById('profile-img-input');
-            if (!fileInput.files || !fileInput.files[0]) return alert('이미지를 선택해주세요.');
-
-            const formData = new FormData();
-            formData.append('username', currentUser.username);
-            formData.append('avatar', fileInput.files[0]);
-
-            const res = await fetch('/api/profile', { method: 'POST', body: formData });
-            const data = await res.json();
-            if (data.success) {
-                currentUser.avatar = data.avatar;
-                localStorage.setItem('club_user_obj', JSON.stringify(currentUser));
-                closeProfileModal();
-                initAuthView();
-                fetchInitialData();
-            } else {
-                alert(data.message);
-            }
-        }
-
-        async function fetchInitialData() {
-            const resPosts = await fetch('/api/posts');
-            const posts = await resPosts.json();
-            renderFeed(posts);
-
-            const resUsers = await fetch('/api/users');
-            const users = await resUsers.json();
-            renderUserList(users);
-        }
-
-        async function createPost() {
-            if (!currentUser) {
-                alert('로그인 후 업로드할 수 있습니다.');
-                openLoginModal();
-                return;
-            }
-            const title = document.getElementById('post-title').value.trim();
-            const desc = document.getElementById('post-desc').value.trim();
-            const imgInput = document.getElementById('post-img');
-
-            if (!title) return alert('제목을 입력해주세요.');
-
-            const formData = new FormData();
-            formData.append('author', currentUser.username);
-            formData.append('title', title);
-            formData.append('desc', desc);
-            if (imgInput.files && imgInput.files[0]) formData.append('image', imgInput.files[0]);
-
-            const res = await fetch('/api/posts', { method: 'POST', body: formData });
-            const data = await res.json();
-            if (data.success) {
-                document.getElementById('post-title').value = '';
-                document.getElementById('post-desc').value = '';
-                document.getElementById('post-img').value = '';
-            } else {
-                alert(data.message);
-            }
-        }
-
-        async function deletePost(postId) {
-            if (!currentUser) return;
-            await fetch(`/api/posts/${postId}`, {
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: currentUser.username })
-            });
-        }
-
-        async function addComment(postId) {
-            if (!currentUser) {
-                alert('로그인이 필요합니다.');
-                openLoginModal();
-                return;
-            }
-            const input = document.getElementById(`comment-input-${postId}`);
-            const text = input.value.trim();
-            if (!text) return;
-
-            await fetch(`/api/posts/${postId}/comments`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ author: currentUser.username, text })
-            });
-            input.value = '';
-        }
-
-        async function deleteComment(postId, commentId) {
-            if (!currentUser) return;
-            await fetch(`/api/posts/${postId}/comments/${commentId}`, {
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username: currentUser.username })
-            });
-        }
-
-        async function deleteUser(targetUsername) {
-            if (currentUser.username !== '이윤호') return;
-            if (!confirm(`정말로 '${targetUsername}' 계정을 삭제하시겠습니까? 해당 유저의 글과 댓글이 모두 삭제됩니다.`)) return;
-
-            await fetch(`/api/users/${encodeURIComponent(targetUsername)}`, {
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ admin: currentUser.username })
-            });
-            fetchInitialData();
-        }
-
-        function renderFeed(posts) {
-            const container = document.getElementById('feed-container');
-            if (!posts || posts.length === 0) {
-                container.innerHTML = `<div class="bg-slate-800 p-8 rounded-xl border border-slate-700 text-center text-slate-400 text-sm">등록된 작품이 없습니다.</div>`;
-                return;
-            }
-
-            container.innerHTML = posts.map(p => `
-                <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 space-y-3">
-                    <div class="flex justify-between items-center text-xs text-slate-400">
-                        <div class="flex items-center gap-2">
-                            <span class="font-semibold text-cyan-400">${escapeStr(p.author)}</span>
-                        </div>
-                        <div class="flex items-center gap-3">
-                            <span>${p.date}</span>
-                            ${(currentUser && (currentUser.username === p.author || currentUser.username === '이윤호')) ? `<button onclick="deletePost(${p.id})" class="text-red-400 hover:text-red-300 font-bold">삭제</button>` : ''}
-                        </div>
-                    </div>
-                    <h3 class="text-base font-bold text-slate-100">${escapeStr(p.title)}</h3>
-                    ${p.desc ? `<p class="text-sm text-slate-300 whitespace-pre-wrap">${escapeStr(p.desc)}</p>` : ''}
-                    ${p.image ? `<div class="rounded-lg overflow-hidden border border-slate-700 bg-slate-900 max-h-80 flex justify-center"><img src="${p.image}" class="object-contain max-h-80"></div>` : ''}
-                    
-                    <!-- 댓글 영역 -->
-                    <div class="border-t border-slate-700 pt-3 mt-3 space-y-2">
-                        <div class="text-xs font-semibold text-cyan-300">댓글 (${p.comments ? p.comments.length : 0})</div>
-                        <div class="space-y-1.5 max-h-32 overflow-y-auto">
-                            ${p.comments && p.comments.length > 0 ? p.comments.map(c => `
-                                <div class="bg-slate-900 p-2 rounded text-xs flex justify-between items-center">
-                                    <div><span class="font-semibold text-cyan-400">${escapeStr(c.author)}:</span> <span class="text-slate-200">${escapeStr(c.text)}</span></div>
-                                    <div class="flex items-center gap-2">
-                                        <span class="text-[10px] text-slate-500">${c.date}</span>${(currentUser && (currentUser.username === c.author || currentUser.username === '이윤호')) ? `<button onclick="deleteComment(${p.id}, ${c.id})" class="text-red-400 hover:text-red-300 font-bold text-[10px]">삭제</button>` : ''}
-                                    </div>
-                                </div>
-                            `).join('') : '<div class="text-xs text-slate-500">아직 댓글이 없습니다.</div>'}
-                        </div>
-                        <div class="flex gap-2 mt-2">
-                            <input type="text" id="comment-input-${p.id}" placeholder="댓글을 입력하세요..." class="flex-1 px-3 py-1 bg-slate-700 border border-slate-600 rounded text-xs text-white focus:outline-none focus:border-cyan-400">
-                            <button onclick="addComment(${p.id})" class="px-3 py-1 bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold rounded text-xs transition">등록</button>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function renderUserList(users) {
-            const container = document.getElementById('user-list-container');
-            const isYunho = currentUser && currentUser.username === '이윤호';
-
-            if (!users || users.length === 0) {
-                container.innerHTML = `<div class="text-xs text-slate-500 text-center py-4">가입된 유저가 없습니다.</div>`;
-                return;
-            }
-
-            container.innerHTML = users.map(u => `
-                <div class="bg-slate-900 p-2.5 rounded-lg border border-slate-700 flex justify-between items-center text-xs">
-                    <div class="flex items-center gap-2">
-                        <img src="${u.avatar || 'https://via.placeholder.com/150'}" class="w-6 h-6 rounded-full object-cover">
-                        <div>
-                            <span class="font-semibold text-cyan-300">${escapeStr(u.username)}</span>
-                            ${isYunho ? `<span class="block text-[10px] text-slate-400">PW: ${escapeStr(u.password)}</span>` : ''}
-                        </div>
-                    </div>
-                    ${isYunho ? `<button onclick="deleteUser('${u.username}')" class="px-2 py-1 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded text-[10px]">계정 삭제</button>` : ''}
-                </div>
-            `).join('');
-        }
-
-        function escapeStr(str) {
-            if (!str) return '';
-            return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
-        }
-    </script>
-</body>
-</html>
+server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
