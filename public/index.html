@@ -6,6 +6,10 @@
     <title>동아리 작품 공유 플랫폼</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/socket.io/socket.io.js"></script>
+    <!-- [추가] Three.js 및 3D 모델 로더 (GLTFLoader, OrbitControls) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col">
     <!-- 상단 네비게이션 -->
@@ -40,8 +44,12 @@
                     <textarea id="post-desc" rows="3" placeholder="블렌더로 제작한 작품입니다." class="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded text-sm text-white focus:outline-none focus:border-cyan-400 resize-none"></textarea>
                 </div>
                 <div>
-                    <label class="block text-xs text-slate-400 mb-1">사진 파일</label>
+                    <label class="block text-xs text-slate-400 mb-1">대표 사진 파일</label>
                     <input type="file" id="post-img" accept="image/*" class="w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-cyan-500/20 file:text-cyan-300 hover:file:bg-cyan-500/35 cursor-pointer">
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1">3D 모델 파일 (.glb / .gltf)</label>
+                    <input type="file" id="post-model" accept=".glb,.gltf" class="w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-indigo-500/20 file:text-indigo-300 hover:file:bg-indigo-500/35 cursor-pointer">
                 </div>
                 <button onclick="createPost()" class="w-full py-2.5 bg-cyan-500 hover:bg-cyan-600 text-slate-950 font-bold rounded text-sm transition">공유하기</button>
             </div>
@@ -118,7 +126,7 @@
 
         socket.on('force_logout', (deletedUsername) => {
             if (currentUser && currentUser.username === deletedUsername) {
-                alert('관리자에 의해 계정이 삭제되었습니다. 게시글과 댓글이 모두 초기화됩니다.');
+                alert('관리자에 의해 계정이 삭제되었습니다.');
                 handleLogout();
                 window.location.reload();
             }
@@ -211,6 +219,7 @@
             const title = document.getElementById('post-title').value.trim();
             const desc = document.getElementById('post-desc').value.trim();
             const imgInput = document.getElementById('post-img');
+            const modelInput = document.getElementById('post-model');
 
             if (!title) return alert('제목을 입력해주세요.');
 
@@ -219,6 +228,7 @@
             formData.append('title', title);
             formData.append('desc', desc);
             if (imgInput.files && imgInput.files[0]) formData.append('image', imgInput.files[0]);
+            if (modelInput.files && modelInput.files[0]) formData.append('model', modelInput.files[0]);
 
             const res = await fetch('/api/posts', { method: 'POST', body: formData });
             const data = await res.json();
@@ -226,6 +236,7 @@
                 document.getElementById('post-title').value = '';
                 document.getElementById('post-desc').value = '';
                 document.getElementById('post-img').value = '';
+                document.getElementById('post-model').value = '';
             } else {
                 alert(data.message);
             }
@@ -240,7 +251,6 @@
             });
         }
 
-        /* [추가] 작품 좋아요 토글 요청 */
         async function togglePostLike(postId) {
             if (!currentUser) {
                 alert('로그인이 필요합니다.');
@@ -281,7 +291,6 @@
             });
         }
 
-        /* [추가] 댓글 좋아요 토글 요청 */
         async function toggleCommentLike(postId, commentId) {
             if (!currentUser) {
                 alert('로그인이 필요합니다.');
@@ -305,6 +314,59 @@
                 body: JSON.stringify({ admin: currentUser.username })
             });
             fetchInitialData();
+        }
+
+        // [추가] Three.js를 이용해 3D 모델(.glb/.gltf)을 화면에 렌더링하고 마우스로 돌려보게 만드는 함수
+        function init3DViewer(containerId, modelUrl) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0f172a); // 배경색 맞춤 (slate-900)
+
+            const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera.position.set(0, 2, 5);
+
+            const renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            container.appendChild(renderer.domElement);
+
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+
+            // 조명 추가
+            const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            directionalLight.position.set(5, 10, 7);
+            scene.add(directionalLight);
+
+            // 모델 로드
+            const loader = new THREE.GLTFLoader();
+            loader.load(modelUrl, (gltf) => {
+                const model = gltf.scene;
+                
+                // 모델 크기 자동 조절 및 중앙 정렬
+                const box = new THREE.Box3().setFromObject(model);
+                const center = box.getCenter(new THREE.Vector3());
+                const size = box.getSize(new THREE.Vector3());
+                const maxDim = Math.max(size.x, size.y, size.z);
+                const scale = 2 / maxDim;
+                model.scale.set(scale, scale, scale);
+                model.position.sub(center.multiplyScalar(scale));
+
+                scene.add(model);
+            }, undefined, (error) => {
+                console.error('3D 모델 로드 실패:', error);
+            });
+
+            function animate() {
+                requestAnimationFrame(animate);
+                controls.update();
+                renderer.render(scene, camera);
+            }
+            animate();
         }
 
         function renderFeed(posts) {
@@ -332,9 +394,19 @@
                     </div>
                     <h3 class="text-base font-bold text-slate-100">${escapeStr(p.title)}</h3>
                     ${p.desc ? `<p class="text-sm text-slate-300 whitespace-pre-wrap">${escapeStr(p.desc)}</p>` : ''}
+                    
+                    <!-- 이미지 표시 -->
                     ${p.image ? `<div class="rounded-lg overflow-hidden border border-slate-700 bg-slate-900 max-h-80 flex justify-center"><img src="${p.image}" class="object-contain max-h-80"></div>` : ''}
                     
-                    <!-- [추가] 작품 좋아요 버튼 영역 -->
+                    <!-- [추가] 3D 모델 뷰어 영역 -->
+                    ${p.model ? `
+                        <div class="space-y-1">
+                            <div class="text-[11px] text-indigo-300 font-semibold">🧊 3D 모델 뷰어 (마우스로 돌려보세요)</div>
+                            <div id="viewer-${p.id}" class="w-full h-64 rounded-lg overflow-hidden border border-slate-700 bg-slate-900 relative"></div>
+                        </div>
+                    ` : ''}
+                    
+                    <!-- 작품 좋아요 버튼 -->
                     <div class="flex items-center gap-2 pt-1">
                         <button onclick="togglePostLike(${p.id})" class="px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition ${likeBtnColor}">
                             ❤️ 작품 좋아요 <span class="font-bold">${likes.length}</span>
@@ -353,7 +425,6 @@
                                 return `
                                 <div class="bg-slate-900 p-2.5 rounded-lg border border-slate-700 flex justify-between items-center text-xs">
                                     <div class="flex items-center gap-2.5 overflow-hidden">
-                                        <!-- [추가] 댓글 작성자 프로필 사진 -->
                                         <img src="${c.avatar || 'https://via.placeholder.com/150'}" class="w-7 h-7 rounded-full object-cover border border-slate-700 flex-shrink-0">
                                         <div class="overflow-hidden">
                                             <div class="font-semibold text-cyan-400">${escapeStr(c.author)}</div>
@@ -361,7 +432,6 @@
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-3 flex-shrink-0 ml-2">
-                                        <!-- [추가] 댓글 좋아요 버튼 -->
                                         <button onclick="toggleCommentLike(${p.id},${c.id})" class="flex items-center gap-1 transition ${commentLikeColor}">
                                             👍 <span class="text-[11px]">${cLikes.length}</span>
                                         </button>
@@ -379,6 +449,13 @@
                 </div>
                 `;
             }).join('');
+
+            // 렌더링 완료 후 3D 모델이 있는 게시글마다 뷰어 초기화 실행
+            posts.forEach(p => {
+                if (p.model) {
+                    init3DViewer(`viewer-${p.id}`, p.model);
+                }
+            });
         }
 
         function renderUserList(users) {
